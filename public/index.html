@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Centrum wyjazdu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+
+<header class="top">
+  <h1 id="title">Centrum wyjazdu</h1>
+  <nav class="tabs" aria-label="Zakładki">
+    <button type="button" data-view="pomysly" aria-pressed="true">Pomysły</button>
+    <button type="button" data-view="chetni" aria-pressed="false">Kto co chce</button>
+    <button type="button" data-view="plan" aria-pressed="false">Wspólny plan</button>
+    <button type="button" data-view="moj" aria-pressed="false">Mój plan</button>
+  </nav>
+  <button type="button" id="me-chip" class="me" title="Zmień osobę"></button>
+</header>
+
+<main>
+  <section id="view-pomysly" class="ideas-view">
+    <form id="add" class="add" autocomplete="off">
+      <h3>Dodaj pomysł</h3>
+      <label for="add-title">Co robimy?</label>
+      <input id="add-title" name="title" maxlength="60" placeholder="np. pierogi na Starym Rynku" required>
+      <label for="add-link">Link, jeśli jest</label>
+      <input id="add-link" name="link" maxlength="300" inputmode="url" placeholder="np. strona lokalu albo mapa">
+      <fieldset>
+        <legend>Rodzaj</legend>
+        <div id="cats" class="cats"></div>
+      </fieldset>
+      <button type="submit" class="btn">Dodaj pomysł</button>
+    </form>
+
+    <div>
+      <h2>Co robimy na wyjeździe</h2>
+      <p id="ideas-summary" class="hint"></p>
+      <a href="#add" class="btn-line jump">Dodaj pomysł</a>
+      <div id="filters" class="filters" role="group" aria-label="Pokaż rodzaj"></div>
+      <div class="sorts" role="group" aria-label="Kolejność">
+        <button type="button" data-sort="todo" aria-pressed="true">Do ocenienia</button>
+        <button type="button" data-sort="hot" aria-pressed="false">Najbardziej chciane</button>
+        <button type="button" data-sort="new" aria-pressed="false">Najnowsze</button>
+      </div>
+      <div id="ideas" class="ideas"></div>
+    </div>
+  </section>
+
+  <section id="view-chetni" hidden>
+    <h2>Kto co chce</h2>
+    <p id="rank-summary" class="hint"></p>
+    <div id="rank" class="rank"></div>
+    <h2>Każda osoba</h2>
+    <div id="people" class="people"></div>
+    <details class="history">
+      <summary>Historia <small id="events-count"></small></summary>
+      <ol id="events" class="events"></ol>
+    </details>
+  </section>
+
+  <section id="view-plan" class="mine" hidden>
+    <aside class="side">
+      <h2>Do ułożenia</h2>
+      <p class="hint">Najbardziej chciane na górze. Przeciągnij kafelek na plan albo stuknij kafelek, a potem „Wstaw tutaj”.</p>
+      <div id="pool" class="pool" data-drop="pool"></div>
+    </aside>
+
+    <div class="board-wrap">
+      <h2>Wspólny plan</h2>
+      <p id="plan-summary" class="hint"></p>
+      <div id="board"></div>
+    </div>
+  </section>
+
+  <section id="view-moj" hidden>
+    <h2 id="where-h">Gdzie kto jest</h2>
+    <section class="where" aria-labelledby="where-h">
+      <div id="where-list"></div>
+      <form id="where-form" class="where-form" autocomplete="off">
+        <label for="where-note">Dopisek, jeśli chcesz</label>
+        <div class="where-row">
+          <input id="where-note" maxlength="60" placeholder="np. pawilon 5, wejście">
+          <button type="submit" class="btn">Jestem tutaj</button>
+        </div>
+        <p class="where-hint">Wysyła się raz, po stuknięciu. Znika sama po 2 godzinach.</p>
+      </form>
+    </section>
+
+    <h2>Mój plan</h2>
+    <p id="mine-summary" class="hint"></p>
+    <div id="mine-wants"></div>
+    <div id="mine-board"></div>
+  </section>
+</main>
+
+<footer>
+  <a href="/api/export" download>Pobierz wszystkie dane (JSON)</a>
+  <button type="button" id="logout" class="linklike">Wyloguj z tego urządzenia</button>
+</footer>
+
+<dialog id="login">
+  <form id="login-form">
+    <h2>Centrum wyjazdu ekipy</h2>
+    <label for="login-pass">Hasło ekipy</label>
+    <input id="login-pass" type="password" autocomplete="current-password" required>
+    <p id="login-error" class="error" role="alert"></p>
+    <button type="submit" class="btn">Wejdź</button>
+  </form>
+</dialog>
+
+<dialog id="who">
+  <form id="who-form" method="dialog">
+    <h2>Jako kto się przedstawiasz?</h2>
+    <div id="who-list" class="who-list"></div>
+    <label for="who-name">Nowa osoba</label>
+    <input id="who-name" maxlength="24" placeholder="np. Ania" autocomplete="given-name">
+    <button type="submit" class="btn">To ja</button>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>

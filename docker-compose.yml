@@ -1,0 +1,14 @@
+services:
+  pga:
+    build: .
+    container_name: pga
+    restart: unless-stopped
+    env_file: .env              # PASSWORD, TITLE, DAYS – wzór w .env.example
+    volumes:
+      - ./data:/data            # pga.json + backup/ obok tego pliku
+    networks:
+      - web                     # ta sama sieć co Caddy; Caddy woła pga:3050
+
+networks:
+  web:
+    external: true
