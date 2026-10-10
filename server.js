@@ -395,12 +395,22 @@ function readBody(req) {
   });
 }
 
+function withVersions(html) {
+  return html.replace(/(href|src)="(app\.js|style\.css)"/g, (m, attr, name) => {
+    try {
+      const v = crypto.createHash('sha1').update(fs.readFileSync(path.join(PUBLIC_DIR, name))).digest('hex').slice(0, 10);
+      return `${attr}="${name}?v=${v}"`;
+    } catch { return m; }
+  });
+}
 function serveStatic(req, res, pathname) {
   let rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
   const file = path.join(PUBLIC_DIR, rel);
   if (!file.startsWith(PUBLIC_DIR + path.sep)) return send(res, 404, 'Nie ma.');
   fs.readFile(file, (err, data) => {
     if (err) return send(res, 404, 'Nie ma.');
+    // Adresy app.js i style.css dostają skrót treści – po zmianie pliku przeglądarka musi pobrać nowy.
+    if (rel === 'index.html') data = withVersions(data.toString('utf8'));
     res.writeHead(200, {
       'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',

@@ -2,6 +2,7 @@
   --ink: #1b1f3b;
   --ink-soft: #565b7d;
   --page: #f1f2f9;
+  --line: #d3d6e8;
   --paper: #ffffff;
   --t-rano: #fff1b8;
   --t-dzien: #d6ecff;
@@ -29,6 +30,8 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 [hidden] { display: none !important; }
+/* Białe panele mają obwódkę, żeby ich krawędzie było widać także na ekranach, które rozjaśniają tło. */
+.add, .person, .rank-row, .wants, .where, .bal, .exp, .todo-people li { border: 2px solid var(--line); }
 
 /* ---------- nagłówek ---------- */
 .top {
