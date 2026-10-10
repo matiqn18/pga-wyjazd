@@ -9,7 +9,7 @@ const store = {
 };
 
 let S = null;                       // stan z serwera
-const VIEWS = ['pomysly', 'chetni', 'plan', 'moj'];
+const VIEWS = ['pomysly', 'chetni', 'plan', 'moj', 'wydatki'];
 const SORTS = ['todo', 'hot', 'new'];
 let me = store.get('pga-imie') || '';
 let view = VIEWS.includes(store.get('pga-widok')) ? store.get('pga-widok') : 'pomysly';
@@ -199,7 +199,7 @@ function renderIdeas() {
         <div class="idea-who">${groupsHTML(fansOf(i.id))}</div>
         <div class="idea-actions">
           <span class="muted">${slot ? `W planie: <strong>${esc(slotLabel(slot))}</strong>` : `Dodaje: ${esc(i.by)}`}</span>
-          ${i.byKey === k ? `<button type="button" class="mini" data-del="${esc(i.id)}">Usuń</button>` : ''}
+          ${i.byKey === k ? `<span class="own-actions"><button type="button" class="mini" data-edit="${esc(i.id)}">Edytuj</button><button type="button" class="mini" data-del="${esc(i.id)}">Usuń</button></span>` : ''}
         </div>
       </div></article>`;
   }).join('') || (filter ? `<p class="muted">Nie ma jeszcze pomysłów w kategorii „${esc(CAT_NAMES[filter] || filter)}”. Dodaj pierwszy.</p>` : '');
@@ -209,12 +209,15 @@ function renderChetni() {
   const total = S.ideas.length;
   const behind = S.people
     .map(p => ({ name: p.name, left: S.ideas.filter(i => !levelOf(i.id, p.key)).length }))
-    .filter(p => p.left);
-  $('#rank-summary').textContent = !total
-    ? 'Nie ma jeszcze pomysłów do oceniania.'
+    .filter(p => p.left)
+    .sort((a, b) => b.left - a.left || a.name.localeCompare(b.name, 'pl'));
+  $('#rank-summary').innerHTML = !total
+    ? '<p class="hint">Nie ma jeszcze pomysłów do oceniania.</p>'
     : behind.length
-      ? `Jeszcze nie wszystko ocenione: ${behind.map(p => `${p.name} (${p.left})`).join(', ')}.`
-      : 'Wszyscy ocenili wszystkie pomysły.';
+      ? `<p class="hint">Jeszcze do ocenienia (liczba pomysłów):</p>
+        <ul class="todo-people">${behind.map(p => `<li>${avatar(p.name)}<span>${esc(p.name)}</span>
+          <span class="n" aria-label="${pomysly(p.left)}">${p.left}</span></li>`).join('')}</ul>`
+      : '<p class="hint">Wszyscy ocenili wszystkie pomysły.</p>';
 
   $('#rank').innerHTML = [...S.ideas].sort(byScore).map((i, n) => {
     const fans = fansOf(i.id), slot = boardSlotOf(i.id);
@@ -249,12 +252,16 @@ function renderChetni() {
     join: 'dołącza do planowania',
     idea: `dodaje pomysł ${q(e.idea)}`,
     idea_del: `usuwa pomysł ${q(e.idea)}`,
+    idea_edit: e.from ? `zmienia nazwę pomysłu ${q(e.from)} na ${q(e.idea)}` : `edytuje pomysł ${q(e.idea)}`,
     interest: ({ 3: `bardzo chce: ${q(e.idea)}`, 2: `chętnie idzie na ${q(e.idea)}`, 1: `może iść na ${q(e.idea)}`, 0: `cofa ocenę ${q(e.idea)}` })[e.level],
     place: e.from ? `przenosi ${q(e.idea)} z pola ${esc(slotLabel(e.from))} na pole ${esc(slotLabel(e.to))}`
                   : `wstawia ${q(e.idea)} do planu: ${esc(slotLabel(e.to))}`,
     unplace: `zdejmuje ${q(e.idea)} z planu (${esc(slotLabel(e.from))})`,
     locate: `udostępnia lokalizację${e.note ? ` (${esc(e.note)})` : ''}`,
     locate_off: 'przestaje udostępniać lokalizację',
+    expense: `dodaje wydatek ${q(e.idea)}: ${esc(zl(e.amount))}, płaci ${esc(e.payer)}, dzielone na ${esc(osoby(e.n))}`,
+    expense_del: `usuwa wydatek ${q(e.idea)} (${esc(zl(e.amount))})`,
+    settle: `zapisuje zwrot: ${esc(e.payer)} oddaje ${esc(e.to)} ${esc(zl(e.amount))}`,
     away: `zaznacza, że nie może: ${esc(slotLabel(e.to))}`,
     back: `jednak może: ${esc(slotLabel(e.to))}`,
   }[e.type] || esc(e.type));
@@ -387,7 +394,8 @@ function render() {
   if (view === 'pomysly') renderIdeas();
   else if (view === 'chetni') renderChetni();
   else if (view === 'plan') renderPlan();
-  else renderMine();
+  else if (view === 'moj') renderMine();
+  else renderExpenses();
 }
 
 // ---------- akcje ----------
@@ -424,11 +432,26 @@ document.addEventListener('click', e => {
     return render();
   }
   if (t.closest('[data-where-off]')) return api('locateClear', {});
+  const xd = t.closest('[data-exp-del]');
+  if (xd) {
+    const x = S.expenses.find(e => e.id === xd.dataset.expDel);
+    if (x && confirm(`Usunąć wydatek „${x.title}” (${zl(x.amount)})?`)) api('expenseDelete', { id: x.id });
+    return;
+  }
+  const st = t.closest('[data-settle]');
+  if (st) {
+    const [from, to, amount] = st.dataset.settle.split('|');
+    if (confirm(`Zapisać, że ${nameOf(from)} oddaje ${nameOf(to)} ${zl(+amount)}?`))
+      api('expense', { payer: from, split: [to], amount: (+amount / 100).toFixed(2), settle: true });
+    return;
+  }
   const so = t.closest('[data-sort]');
   if (so) { sort = so.dataset.sort; store.set('pga-sort', sort); return render(); }
   const r = t.closest('[data-rate]');
   if (r) return rate(r.dataset.rate, Number(r.dataset.level));
   if (t.closest('#me-chip')) return askName();
+  const ed = t.closest('[data-edit]');
+  if (ed) return openEdit(ed.dataset.edit);
   const del = t.closest('[data-del]');
   if (del) {
     const idea = S.ideas.find(i => i.id === del.dataset.del);
@@ -456,6 +479,143 @@ document.addEventListener('keydown', e => {
     if (again) again.focus();
   }
 });
+
+// ---------- wspólne wydatki ----------
+const ZL = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' });
+const zl = g => ZL.format(g / 100);
+// Podział po równo co do grosza; reszta po groszu dla pierwszych osób z listy.
+function sharesOf(x) {
+  const n = x.split.length, base = Math.floor(x.amount / n), rest = x.amount - base * n;
+  return Object.fromEntries(x.split.map((k, i) => [k, base + (i < rest ? 1 : 0)]));
+}
+function balances() {
+  const bal = Object.fromEntries(S.people.map(p => [p.key, 0]));
+  for (const x of S.expenses) {
+    bal[x.payer] = (bal[x.payer] || 0) + x.amount;
+    for (const [k, s] of Object.entries(sharesOf(x))) bal[k] = (bal[k] || 0) - s;
+  }
+  return bal;
+}
+// Najmniej przelewów: największy dłużnik oddaje największemu wierzycielowi.
+function transfers(bal) {
+  const debt = Object.entries(bal).filter(([, v]) => v < 0).map(([k, v]) => [k, -v]).sort((a, b) => b[1] - a[1]);
+  const cred = Object.entries(bal).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < debt.length && j < cred.length) {
+    const m = Math.min(debt[i][1], cred[j][1]);
+    out.push({ from: debt[i][0], to: cred[j][0], amount: m });
+    debt[i][1] -= m; cred[j][1] -= m;
+    if (!debt[i][1]) i++;
+    if (!cred[j][1]) j++;
+  }
+  return out;
+}
+
+// Pola wyboru osób przebudowują się tylko, gdy zmienia się lista osób – nie kasują zaznaczeń.
+let pickersFor = '';
+function syncExpensePickers() {
+  const sig = S.people.map(p => p.key + ':' + p.name).join('|');
+  if (sig === pickersFor) return;
+  const sel = $('#exp-payer');
+  const prevPayer = sel.value || myKey();
+  const prevChecked = pickersFor ? new Set([...document.querySelectorAll('#exp-split input:checked')].map(i => i.value)) : null;
+  const known = new Set(pickersFor.split('|').map(s => s.split(':')[0]));
+  sel.innerHTML = S.people.map(p => `<option value="${esc(p.key)}">${esc(p.name)}</option>`).join('');
+  sel.value = S.people.some(p => p.key === prevPayer) ? prevPayer : (S.people[0] || {}).key || '';
+  $('#exp-split').innerHTML = S.people.map(p => {
+    const on = !prevChecked || prevChecked.has(p.key) || !known.has(p.key);   // nowe osoby domyślnie zaznaczone
+    return `<label><input type="checkbox" value="${esc(p.key)}" ${on ? 'checked' : ''}>${avatar(p.name)}${esc(p.name)}</label>`;
+  }).join('');
+  pickersFor = sig;
+  updateShare();
+}
+function updateShare() {
+  const n = document.querySelectorAll('#exp-split input:checked').length;
+  const s = $('#exp-amount').value.replace(/\s|zł/gi, '').replace(',', '.');
+  const g = /^\d+(\.\d{1,2})?$/.test(s) ? Math.round(+s * 100) : 0;
+  $('#exp-share').textContent = !n ? 'Zaznacz co najmniej jedną osobę.'
+    : g ? `${osoby(n)}, po ${zl(Math.floor(g / n))}${g % n ? ' (grosze reszty rozkładają się na pierwsze osoby)' : ''}.`
+      : `Podzieli się po równo na ${osoby(n)}.`;
+}
+
+function renderExpenses() {
+  syncExpensePickers();
+  const k = myKey();
+  const total = S.expenses.filter(x => !x.settle).reduce((s, x) => s + x.amount, 0);
+  const bal = balances();
+  const tr = transfers(bal);
+  $('#exp-summary').textContent = S.expenses.length
+    ? `Razem wydane: ${zl(total)}. Każdy wydatek dzieli się po równo między osoby, które się składają.`
+    : 'Nikt jeszcze nic nie wpisał. Dodaj pierwszy wydatek: kto płaci, ile i kto się składa.';
+
+  $('#exp-settle').innerHTML = !S.expenses.length ? '' : tr.length
+    ? `<div class="settle"><h3>Kto komu oddaje</h3><ul>${tr.map(t => `<li class="${t.from === k || t.to === k ? 'mine' : ''}">
+        ${avatar(nameOf(t.from))}<span><strong>${esc(nameOf(t.from))}</strong> → <strong>${esc(nameOf(t.to))}</strong></span>
+        <span class="amt">${esc(zl(t.amount))}</span>
+        <button type="button" class="mini" data-settle="${esc(t.from)}|${esc(t.to)}|${t.amount}">Oddane</button></li>`).join('')}</ul></div>`
+    : '<div class="settle"><h3>Wszyscy są rozliczeni</h3></div>';
+
+  $('#exp-balance').innerHTML = S.people.map(p => {
+    const v = bal[p.key] || 0;
+    return `<div class="bal ${v > 0 ? 'plus' : v < 0 ? 'minus' : ''}">${avatar(p.name)}<span>${esc(p.name)}${p.key === k ? ' (ty)' : ''}</span>
+      <span class="amt">${v > 0 ? '+' : v < 0 ? '−' : ''}${esc(zl(Math.abs(v)))}</span></div>`;
+  }).join('');
+
+  const fmt = new Intl.DateTimeFormat('pl-PL', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  $('#exp-list').innerHTML = [...S.expenses].reverse().map(x => {
+    const sh = sharesOf(x), n = x.split.length;
+    const each = Math.min(...Object.values(sh));
+    return `<article class="exp ${x.settle ? 'is-settle' : ''}">
+      <div class="exp-head"><strong>${x.settle ? `Zwrot: ${esc(nameOf(x.payer))} → ${esc(nameOf(x.split[0]))}` : esc(x.title)}</strong>
+        <span class="amt">${esc(zl(x.amount))}</span></div>
+      <small>${x.settle ? '' : `płaci ${esc(nameOf(x.payer))} · ${osoby(n)} po ${esc(zl(each))} · `}${esc(fmt.format(x.at))}</small>
+      <div class="exp-foot">${x.settle ? '' : `<span class="idea-who">${x.split.map(s => avatar(nameOf(s))).join('')}</span>`}
+        ${x.byKey === k ? `<button type="button" class="mini" data-exp-del="${esc(x.id)}">Usuń</button>` : ''}</div>
+    </article>`;
+  }).join('') || '<p class="muted">Lista jest pusta.</p>';
+}
+
+$('#exp-amount').addEventListener('input', updateShare);
+$('#exp-split').addEventListener('change', updateShare);
+$('#exp-all').addEventListener('click', () => {
+  const boxes = [...document.querySelectorAll('#exp-split input')];
+  const all = boxes.every(b => b.checked);
+  for (const b of boxes) b.checked = !all;
+  updateShare();
+});
+$('#exp').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!me) return askName();
+  const f = e.target;
+  const split = [...document.querySelectorAll('#exp-split input:checked')].map(i => i.value);
+  if (!split.length) return toast('Zaznacz, kto się składa.');
+  const ok = await api('expense', { title: f.title.value, amount: f.amount.value, payer: f.payer.value, split });
+  if (ok) { f.title.value = ''; f.amount.value = ''; updateShare(); f.title.focus(); toast('Wydatek dodany.'); }
+});
+
+// ---------- edycja pomysłu (okno poza obszarem odświeżania) ----------
+let editing = null;
+function openEdit(id) {
+  const idea = S.ideas.find(i => i.id === id);
+  if (!idea) return;
+  editing = id;
+  const f = $('#edit-form');
+  f.title.value = idea.title;
+  f.link.value = idea.link || '';
+  const radio = f.querySelector(`input[value="${CSS.escape(idea.cat)}"]`) || f.querySelector('input[name=cat]');
+  if (radio) radio.checked = true;
+  $('#edit').showModal();
+  f.title.focus();
+}
+$('#edit-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  const ok = await api('ideaEdit', { id: editing, title: f.title.value, link: f.link.value, cat: f.cat.value });
+  if (ok) { $('#edit').close(); toast('Zapisane.'); }
+});
+$('#edit-cancel').addEventListener('click', () => $('#edit').close());
+$('#edit').addEventListener('close', () => { editing = null; });
 
 $('#add').addEventListener('submit', async e => {
   e.preventDefault();
@@ -603,8 +763,10 @@ async function boot() {
   if (!S) { if (!$('#login').open) toast('Nie udało się połączyć z serwerem.'); return; }
   if (!catsReady) {
     catsReady = true;
-    $('#cats').innerHTML = S.config.cats.map((c, i) =>
-      `<label class="cat-${esc(c)}"><input type="radio" name="cat" value="${esc(c)}" ${i === 0 ? 'checked' : ''}>${shape(c)}${esc(CAT_NAMES[c] || c)}</label>`).join('');
+    const catsHTML = name => S.config.cats.map((c, i) =>
+      `<label class="cat-${esc(c)}"><input type="radio" name="${name}" value="${esc(c)}" ${i === 0 ? 'checked' : ''}>${shape(c)}${esc(CAT_NAMES[c] || c)}</label>`).join('');
+    $('#cats').innerHTML = catsHTML('cat');
+    $('#edit-cats').innerHTML = catsHTML('cat');
   }
   if (me) api('join', {}); else askName();
 }

@@ -20,6 +20,7 @@
     <button type="button" data-view="chetni" aria-pressed="false">Kto co chce</button>
     <button type="button" data-view="plan" aria-pressed="false">Wspólny plan</button>
     <button type="button" data-view="moj" aria-pressed="false">Mój plan</button>
+    <button type="button" data-view="wydatki" aria-pressed="false">Wydatki</button>
   </nav>
   <button type="button" id="me-chip" class="me" title="Zmień osobę"></button>
 </header>
@@ -55,7 +56,7 @@
 
   <section id="view-chetni" hidden>
     <h2>Kto co chce</h2>
-    <p id="rank-summary" class="hint"></p>
+    <div id="rank-summary" class="rank-summary"></div>
     <div id="rank" class="rank"></div>
     <h2>Każda osoba</h2>
     <div id="people" class="people"></div>
@@ -98,6 +99,35 @@
     <div id="mine-wants"></div>
     <div id="mine-board"></div>
   </section>
+
+  <section id="view-wydatki" class="ideas-view" hidden>
+    <form id="exp" class="add" autocomplete="off">
+      <h3>Dodaj wydatek</h3>
+      <label for="exp-title">Za co?</label>
+      <input id="exp-title" name="title" maxlength="60" placeholder="np. pizza, nocleg, paliwo" required>
+      <label for="exp-amount">Ile? (zł)</label>
+      <input id="exp-amount" name="amount" inputmode="decimal" maxlength="12" placeholder="np. 120 albo 45,50" required>
+      <label for="exp-payer">Kto płaci?</label>
+      <select id="exp-payer" name="payer" required></select>
+      <fieldset>
+        <legend>Kto się składa? <button type="button" id="exp-all" class="linklike">zaznacz wszystkich</button></legend>
+        <div id="exp-split" class="split"></div>
+      </fieldset>
+      <p id="exp-share" class="where-hint"></p>
+      <button type="submit" class="btn">Dodaj wydatek</button>
+    </form>
+
+    <div>
+      <h2>Wspólne wydatki</h2>
+      <p id="exp-summary" class="hint"></p>
+      <a href="#exp" class="btn-line jump">Dodaj wydatek</a>
+      <div id="exp-settle"></div>
+      <h2>Bilans</h2>
+      <div id="exp-balance" class="balance"></div>
+      <h2>Lista wydatków</h2>
+      <div id="exp-list" class="exp-list"></div>
+    </div>
+  </section>
 </main>
 
 <footer>
@@ -115,12 +145,30 @@
   </form>
 </dialog>
 
+<dialog id="edit">
+  <form id="edit-form" autocomplete="off">
+    <h2>Edytuj pomysł</h2>
+    <label for="edit-title">Co robimy?</label>
+    <input id="edit-title" name="title" maxlength="60" required>
+    <label for="edit-link">Link, jeśli jest</label>
+    <input id="edit-link" name="link" maxlength="300" inputmode="url">
+    <fieldset>
+      <legend>Rodzaj</legend>
+      <div id="edit-cats" class="cats"></div>
+    </fieldset>
+    <div class="dialog-actions">
+      <button type="button" class="btn-line" id="edit-cancel">Anuluj</button>
+      <button type="submit" class="btn">Zapisz</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="who">
   <form id="who-form" method="dialog">
     <h2>Jako kto się przedstawiasz?</h2>
     <div id="who-list" class="who-list"></div>
     <label for="who-name">Nowa osoba</label>
-    <input id="who-name" maxlength="24" placeholder="np. Ania" autocomplete="given-name">
+    <input id="who-name" maxlength="24" placeholder="imię albo ksywka" autocomplete="given-name">
     <button type="submit" class="btn">To ja</button>
   </form>
 </dialog>

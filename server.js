@@ -35,7 +35,8 @@ if (!SLOTS.size) { console.error('DAYS nie zawiera żadnego dnia z porami.'); pr
 // board:    { slots: { [slotId]: [ideaId] } }        jeden wspólny plan ekipy
 // plans:    { [klucz]: { away: [slotId], updatedAt } }
 // locations: { [klucz]: { lat, lng, acc, note, t } }  „Jestem tutaj”, ważne LOCATION_TTL
-let state = { schema: SCHEMA, v: 1, people: {}, ideas: [], interest: {}, board: { slots: {} }, plans: {}, locations: {}, events: [] };
+// expenses: [ { id, title, amount (grosze), payer, split: [klucz], settle?, byKey, at } ]  dzielone po równo
+let state = { schema: SCHEMA, v: 1, people: {}, ideas: [], interest: {}, board: { slots: {} }, plans: {}, locations: {}, expenses: [], events: [] };
 const LOCATION_TTL = 2 * 3600e3;
 
 function migrate(s) {
@@ -120,6 +121,7 @@ function publicState() {
     board: state.board,
     plans: state.plans,
     locations: Object.fromEntries(Object.entries(state.locations).filter(([, l]) => Date.now() - l.t < LOCATION_TTL)),
+    expenses: state.expenses,
     events: state.events,
   };
 }
@@ -143,6 +145,27 @@ function planOf(key) {
   p.updatedAt = Date.now();
   return p;
 }
+// „12,50”, „12.5”, „12 zł” → 1250 groszy
+function grosze(v) {
+  const s = String(v ?? '').replace(/\s|zł|pln/gi, '').replace(',', '.');
+  if (!/^\d{1,7}(\.\d{1,2})?$/.test(s)) fail('Podaj kwotę, np. 120 albo 45,50.');
+  const g = Math.round(Number(s) * 100);
+  if (g <= 0) fail('Kwota musi być większa od zera.');
+  return g;
+}
+function knownPerson(key, what) {
+  key = String(key ?? '');
+  if (!Object.hasOwn(state.people, key)) fail(`Nie ma takiej osoby (${what}).`);
+  return key;
+}
+function ideaFields(body) {
+  const title = clean(body.title, 60);
+  if (!title) fail('Wpisz, co robimy.');
+  let link = clean(body.link, 300);
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+  if (link) { try { new URL(link); } catch { fail('Ten link wygląda na niepoprawny.'); } }
+  return { title, link, cat: CATS.includes(body.cat) ? body.cat : 'inne' };
+}
 function findIdea(id) {
   const idea = state.ideas.find(i => i.id === id);
   if (!idea) fail('Tego pomysłu już nie ma.');
@@ -164,15 +187,21 @@ const actions = {
 
   idea(body) {
     const me = person(body);
-    const title = clean(body.title, 60);
-    if (!title) fail('Wpisz, co robimy.');
-    let link = clean(body.link, 300);
-    if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
-    if (link) { try { new URL(link); } catch { fail('Ten link wygląda na niepoprawny.'); } }
-    const cat = CATS.includes(body.cat) ? body.cat : 'inne';
-    const idea = { id: crypto.randomBytes(6).toString('base64url'), title, note: clean(body.note, 120), link, cat, by: me.name, byKey: me.key, at: Date.now() };
+    const { title, link, cat } = ideaFields(body);
+    const idea = { id: crypto.randomBytes(6).toString('base64url'), title, note: '', link, cat, by: me.name, byKey: me.key, at: Date.now() };
     state.ideas.push(idea);
     log(me.name, 'idea', { idea: title });
+  },
+
+  ideaEdit(body) {
+    const me = person(body);
+    const idea = findIdea(body.id);
+    if (idea.byKey !== me.key) fail('Pomysł może edytować tylko osoba, która go dodaje.');
+    const next = ideaFields(body);
+    if (next.title === idea.title && next.link === idea.link && next.cat === idea.cat) return;
+    const from = idea.title;
+    Object.assign(idea, next);
+    log(me.name, 'idea_edit', { idea: idea.title, ...(from !== idea.title ? { from } : {}) });
   },
 
   ideaDelete(body) {
@@ -235,6 +264,34 @@ const actions = {
     if (!state.locations[me.key]) return;
     delete state.locations[me.key];
     log(me.name, 'locate_off');
+  },
+
+  // Wydatek dzielony po równo między osoby z listy split. settle = zwrot długu (payer oddaje split[0]).
+  expense(body) {
+    const me = person(body);
+    const amount = grosze(body.amount);
+    const payer = knownPerson(body.payer, 'kto płaci');
+    if (!Array.isArray(body.split) || !body.split.length) fail('Zaznacz, kto się składa.');
+    const split = [...new Set(body.split.map(k => knownPerson(k, 'kto się składa')))];
+    const settle = !!body.settle;
+    if (settle && (split.length !== 1 || split[0] === payer)) fail('Zwrot musi iść od jednej osoby do innej.');
+    const title = settle ? 'Zwrot' : clean(body.title, 60);
+    if (!title) fail('Wpisz, za co.');
+    const e = { id: crypto.randomBytes(6).toString('base64url'), title, amount, payer, split, byKey: me.key, at: Date.now(), ...(settle ? { settle } : {}) };
+    state.expenses.push(e);
+    const pay = state.people[payer].name;
+    log(me.name, settle ? 'settle' : 'expense', settle
+      ? { amount, payer: pay, to: state.people[split[0]].name }
+      : { idea: title, amount, payer: pay, n: split.length });
+  },
+
+  expenseDelete(body) {
+    const me = person(body);
+    const e = state.expenses.find(x => x.id === body.id);
+    if (!e) fail('Tego wydatku już nie ma.');
+    if (e.byKey !== me.key) fail('Wydatek może usunąć tylko osoba, która go dodaje.');
+    state.expenses = state.expenses.filter(x => x !== e);
+    log(me.name, 'expense_del', { idea: e.title, amount: e.amount });
   },
 
   away(body) {
