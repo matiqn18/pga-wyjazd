@@ -133,6 +133,7 @@
 <footer>
   <a href="/api/export" download>Pobierz wszystkie dane (JSON)</a>
   <button type="button" id="logout" class="linklike">Wyloguj z tego urządzenia</button>
+  <button type="button" id="admin-toggle" class="linklike" hidden>Tryb admina</button>
 </footer>
 
 <dialog id="login">
@@ -142,6 +143,42 @@
     <input id="login-pass" type="password" autocomplete="current-password" required>
     <p id="login-error" class="error" role="alert"></p>
     <button type="submit" class="btn">Wejdź</button>
+  </form>
+</dialog>
+
+<dialog id="admin-login">
+  <form id="admin-form">
+    <h2>Tryb admina</h2>
+    <p class="where-hint">Admin może edytować i usuwać wszystkie pomysły i wydatki oraz zmieniać imiona i usuwać osoby. Działa na tym urządzeniu przez 30 dni.</p>
+    <label for="admin-pass">Hasło admina</label>
+    <input id="admin-pass" type="password" autocomplete="off" required>
+    <p id="admin-error" class="error" role="alert"></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn-line" data-close>Anuluj</button>
+      <button type="submit" class="btn">Włącz</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="exp-edit">
+  <form id="exp-edit-form" autocomplete="off">
+    <h2>Edytuj wydatek</h2>
+    <div id="exp-edit-title-wrap">
+      <label for="exp-edit-title">Za co?</label>
+      <input id="exp-edit-title" name="title" maxlength="60">
+    </div>
+    <label for="exp-edit-amount">Ile? (zł)</label>
+    <input id="exp-edit-amount" name="amount" inputmode="decimal" maxlength="12" required>
+    <label for="exp-edit-payer">Kto płaci?</label>
+    <select id="exp-edit-payer" name="payer" required></select>
+    <fieldset>
+      <legend>Kto się składa?</legend>
+      <div id="exp-edit-split" class="split"></div>
+    </fieldset>
+    <div class="dialog-actions">
+      <button type="button" class="btn-line" data-close>Anuluj</button>
+      <button type="submit" class="btn">Zapisz</button>
+    </div>
   </form>
 </dialog>
 

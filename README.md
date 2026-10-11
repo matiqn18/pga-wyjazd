@@ -35,6 +35,7 @@ $env:PASSWORD="test"; node server.js   # PowerShell
 ## Ustawienia
 
 - `PASSWORD` – wspólne hasło ekipy; bez niego strona jest otwarta
+- `ADMIN_PASSWORD` – hasło admina („Tryb admina” na dole strony): edycja i usuwanie wszystkich pomysłów i wydatków, zmiana imion, usuwanie osób; puste = wyłączone
 - `TITLE` – nagłówek strony
 - `DAYS` – dni i pory dnia, np. `Piątek:rano,popołudnie,wieczór;Sobota:rano,popołudnie,wieczór`
 

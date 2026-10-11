@@ -101,6 +101,8 @@ const LEVELS = { 3: 'Bardzo chcę', 2: 'Chętnie', 1: 'Mogę' };
 const LEVEL_GROUPS = { 3: 'Bardzo chcą', 2: 'Chętnie', 1: 'Mogą' };
 const pips = n => `<span class="pips" aria-hidden="true">${'<i></i>'.repeat(n)}</span>`;
 const myKey = () => keyOf(me);
+// Autor albo admin (serwer i tak sprawdza to samo).
+const canEdit = x => x.byKey === myKey() || !!S.admin;
 const levelOf = (id, key) => (S.interest[id] || {})[key] || 0;
 const nameOf = key => (S.people.find(p => p.key === key) || {}).name || key;
 // Chętni do pomysłu, od najbardziej zainteresowanych.
@@ -199,7 +201,7 @@ function renderIdeas() {
         <div class="idea-who">${groupsHTML(fansOf(i.id))}</div>
         <div class="idea-actions">
           <span class="muted">${slot ? `W planie: <strong>${esc(slotLabel(slot))}</strong>` : `Dodaje: ${esc(i.by)}`}</span>
-          ${i.byKey === k ? `<span class="own-actions"><button type="button" class="mini" data-edit="${esc(i.id)}">Edytuj</button><button type="button" class="mini" data-del="${esc(i.id)}">Usuń</button></span>` : ''}
+          ${canEdit(i) ? `<span class="own-actions"><button type="button" class="mini" data-edit="${esc(i.id)}">Edytuj</button><button type="button" class="mini" data-del="${esc(i.id)}">Usuń</button></span>` : ''}
         </div>
       </div></article>`;
   }).join('') || (filter ? `<p class="muted">Nie ma jeszcze pomysłów w kategorii „${esc(CAT_NAMES[filter] || filter)}”. Dodaj pierwszy.</p>` : '');
@@ -241,6 +243,8 @@ function renderChetni() {
     return `<article class="person">
       <div class="person-head">${avatar(p.name, true)}<div><strong>${esc(p.name)}</strong>
         <small>${total ? `oceniono: ${total - S.ideas.filter(i => !levelOf(i.id, p.key)).length} z ${total}` : ''}</small></div></div>
+      ${S.admin ? `<div class="admin-row"><button type="button" class="mini" data-p-rename="${esc(p.key)}">Zmień imię</button>
+        ${p.key !== myKey() ? `<button type="button" class="mini" data-p-del="${esc(p.key)}">Usuń osobę</button>` : ''}</div>` : ''}
       ${groups || '<p class="muted">Jeszcze nic nie wybiera.</p>'}
       ${away.length ? `<h4>Nie może</h4><p>${esc(away.map(slotLabel).join('; '))}</p>` : ''}
     </article>`;
@@ -261,13 +265,16 @@ function renderChetni() {
     locate_off: 'przestaje udostępniać lokalizację',
     expense: `dodaje wydatek ${q(e.idea)}: ${esc(zl(e.amount))}, płaci ${esc(e.payer)}, dzielone na ${esc(osoby(e.n))}`,
     expense_del: `usuwa wydatek ${q(e.idea)} (${esc(zl(e.amount))})`,
+    expense_edit: `zmienia wydatek ${q(e.idea)} (teraz ${esc(zl(e.amount))})`,
+    person_rename: `zmienia imię ${q(e.from)} na ${q(e.to)}`,
+    person_del: `usuwa osobę ${q(e.to)}`,
     settle: `zapisuje zwrot: ${esc(e.payer)} oddaje ${esc(e.to)} ${esc(zl(e.amount))}`,
     away: `zaznacza, że nie może: ${esc(slotLabel(e.to))}`,
     back: `jednak może: ${esc(slotLabel(e.to))}`,
   }[e.type] || esc(e.type));
   $('#events-count').textContent = S.events.length ? `(${S.events.length})` : '';
   $('#events').innerHTML = [...S.events].reverse().map(e =>
-    `<li><time datetime="${new Date(e.t).toISOString()}">${esc(fmt.format(e.t))}</time><span><strong>${esc(e.who)}</strong> ${text(e)}</span></li>`
+    `<li><time datetime="${new Date(e.t).toISOString()}">${esc(fmt.format(e.t))}</time><span><strong>${esc(e.who)}</strong> ${text(e)}${e.admin ? ' <span class="admin-tag">jako admin</span>' : ''}</span></li>`
   ).join('') || '<li class="muted">Jeszcze nic się nie wydarzyło.</li>';
 }
 
@@ -387,7 +394,12 @@ function render() {
   if (drag && drag.started) { pendingRender = true; return; }
   document.title = S.config.title;
   $('#title').textContent = S.config.title;
-  $('#me-chip').innerHTML = me ? `${avatar(me)}<span>${esc(me)}</span>` : 'Podaj imię';
+  // Admin zmienił komuś imię: to urządzenie przechodzi na nowe.
+  const alias = me && (S.aliases || {})[keyOf(me)];
+  if (alias && S.people.some(p => p.key === alias)) { me = nameOf(alias); store.set('pga-imie', me); }
+  $('#me-chip').innerHTML = me ? `${avatar(me)}<span>${esc(me)}</span>${S.admin ? '<span class="admin-tag">admin</span>' : ''}` : 'Podaj imię';
+  $('#admin-toggle').hidden = !S.adminEnabled && !S.admin;
+  $('#admin-toggle').textContent = S.admin ? 'Wyjdź z trybu admina' : 'Tryb admina';
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.view === view);
   for (const v of VIEWS) $('#view-' + v).hidden = v !== view;
   if (selected && !S.ideas.some(i => i.id === selected)) selected = null;
@@ -432,6 +444,21 @@ document.addEventListener('click', e => {
     return render();
   }
   if (t.closest('[data-where-off]')) return api('locateClear', {});
+  const xe = t.closest('[data-exp-edit]');
+  if (xe) return openExpenseEdit(xe.dataset.expEdit);
+  const pr = t.closest('[data-p-rename]');
+  if (pr) {
+    const old = nameOf(pr.dataset.pRename);
+    const name = prompt(`Nowe imię dla „${old}”:`, old);
+    if (name && name.trim() && name.trim() !== old) api('personRename', { key: pr.dataset.pRename, newName: name });
+    return;
+  }
+  const pd = t.closest('[data-p-del]');
+  if (pd) {
+    if (confirm(`Usunąć osobę „${nameOf(pd.dataset.pDel)}”? Znikną jej oceny, „nie mogę” i lokalizacja. Pomysły zostają.`)) api('personDelete', { key: pd.dataset.pDel });
+    return;
+  }
+  if (t.closest('[data-close]')) return t.closest('dialog').close();
   const xd = t.closest('[data-exp-del]');
   if (xd) {
     const x = S.expenses.find(e => e.id === xd.dataset.expDel);
@@ -571,7 +598,7 @@ function renderExpenses() {
         <span class="amt">${esc(zl(x.amount))}</span></div>
       <small>${x.settle ? '' : `płaci ${esc(nameOf(x.payer))} · ${osoby(n)} po ${esc(zl(each))} · `}${esc(fmt.format(x.at))}</small>
       <div class="exp-foot">${x.settle ? '' : `<span class="idea-who">${x.split.map(s => avatar(nameOf(s))).join('')}</span>`}
-        ${x.byKey === k ? `<button type="button" class="mini" data-exp-del="${esc(x.id)}">Usuń</button>` : ''}</div>
+        ${canEdit(x) ? `<span class="own-actions"><button type="button" class="mini" data-exp-edit="${esc(x.id)}">Edytuj</button><button type="button" class="mini" data-exp-del="${esc(x.id)}">Usuń</button></span>` : ''}</div>
     </article>`;
   }).join('') || '<p class="muted">Lista jest pusta.</p>';
 }
@@ -615,6 +642,54 @@ $('#edit-form').addEventListener('submit', async e => {
   if (ok) { $('#edit').close(); toast('Zapisane.'); }
 });
 $('#edit-cancel').addEventListener('click', () => $('#edit').close());
+
+// ---------- edycja wydatku ----------
+let editingExp = null;
+function openExpenseEdit(id) {
+  const x = S.expenses.find(e => e.id === id);
+  if (!x) return;
+  editingExp = x;
+  const f = $('#exp-edit-form');
+  $('#exp-edit-title-wrap').hidden = !!x.settle;          // zwrot nie ma nazwy
+  f.title.value = x.settle ? '' : x.title;
+  f.amount.value = (x.amount / 100).toFixed(2).replace('.', ',');
+  f.payer.innerHTML = S.people.map(p => `<option value="${esc(p.key)}">${esc(p.name)}</option>`).join('');
+  f.payer.value = x.payer;
+  $('#exp-edit-split').innerHTML = S.people.map(p =>
+    `<label><input type="${x.settle ? 'radio' : 'checkbox'}" name="split" value="${esc(p.key)}" ${x.split.includes(p.key) ? 'checked' : ''}>${avatar(p.name)}${esc(p.name)}</label>`).join('');
+  $('#exp-edit').showModal();
+}
+$('#exp-edit-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  const split = [...document.querySelectorAll('#exp-edit-split input:checked')].map(i => i.value);
+  if (!split.length) return toast('Zaznacz, kto się składa.');
+  const ok = await api('expenseEdit', { id: editingExp.id, title: f.title.value, amount: f.amount.value, payer: f.payer.value, split });
+  if (ok) { $('#exp-edit').close(); toast('Zapisane.'); }
+});
+
+// ---------- tryb admina ----------
+$('#admin-toggle').addEventListener('click', async () => {
+  if (S && S.admin) {
+    try { accept(await (await fetch('/api/adminLogout', { method: 'POST' })).json()); toast('Tryb admina wyłączony.'); } catch { toast('Brak połączenia z serwerem.'); }
+    return;
+  }
+  $('#admin-error').textContent = '';
+  $('#admin-pass').value = '';
+  $('#admin-login').showModal();
+});
+$('#admin-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const r = await fetch('/api/adminLogin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#admin-pass').value }) });
+    const data = await r.json();
+    if (!r.ok) { $('#admin-error').textContent = data.error || 'Nie udało się.'; return; }
+    $('#admin-pass').value = '';
+    $('#admin-login').close();
+    accept(data);
+    toast('Tryb admina włączony.');
+  } catch { $('#admin-error').textContent = 'Brak połączenia z serwerem.'; }
+});
 $('#edit').addEventListener('close', () => { editing = null; });
 
 $('#add').addEventListener('submit', async e => {

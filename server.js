@@ -11,6 +11,7 @@ const DATA_FILE = path.join(DATA_DIR, 'pga.json');
 const BACKUP_DIR = path.join(DATA_DIR, 'backup');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PASSWORD = process.env.PASSWORD || '';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';   // puste = tryb admina wyłączony
 const TITLE = process.env.TITLE || 'PGA: centrum wyjazdu';
 const DAYS_RAW = process.env.DAYS || 'Piątek:rano,popołudnie,wieczór;Sobota:rano,popołudnie,wieczór;Niedziela:rano,popołudnie';
 const CATS = ['atrakcje', 'jedzenie', 'pga', 'inne'];
@@ -36,7 +37,8 @@ if (!SLOTS.size) { console.error('DAYS nie zawiera żadnego dnia z porami.'); pr
 // plans:    { [klucz]: { away: [slotId], updatedAt } }
 // locations: { [klucz]: { lat, lng, acc, note, t } }  „Jestem tutaj”, ważne LOCATION_TTL
 // expenses: [ { id, title, amount (grosze), payer, split: [klucz], settle?, byKey, at } ]  dzielone po równo
-let state = { schema: SCHEMA, v: 1, people: {}, ideas: [], interest: {}, board: { slots: {} }, plans: {}, locations: {}, expenses: [], events: [] };
+// aliases: { [stary klucz]: nowy klucz }  po zmianie imienia przez admina stare urządzenia trafiają do nowej osoby
+let state = { schema: SCHEMA, v: 1, people: {}, ideas: [], interest: {}, board: { slots: {} }, plans: {}, locations: {}, expenses: [], aliases: {}, events: [] };
 const LOCATION_TTL = 2 * 3600e3;
 
 function migrate(s) {
@@ -122,6 +124,7 @@ function publicState() {
     plans: state.plans,
     locations: Object.fromEntries(Object.entries(state.locations).filter(([, l]) => Date.now() - l.t < LOCATION_TTL)),
     expenses: state.expenses,
+    aliases: state.aliases,
     events: state.events,
   };
 }
@@ -133,7 +136,8 @@ const fail = msg => { throw new UserError(msg); };
 function person(body) {
   const name = clean(body.name, 24);
   if (!name) fail('Najpierw podaj imię.');
-  const key = keyOf(name);
+  let key = keyOf(name);
+  if (state.aliases[key] && state.people[state.aliases[key]]) key = state.aliases[key];   // imię zmienione przez admina
   if (!state.people[key]) {
     state.people[key] = { name, joinedAt: Date.now() };
     log(name, 'join');
@@ -166,6 +170,42 @@ function ideaFields(body) {
   if (link) { try { new URL(link); } catch { fail('Ten link wygląda na niepoprawny.'); } }
   return { title, link, cat: CATS.includes(body.cat) ? body.cat : 'inne' };
 }
+// Autor albo admin; zwraca dopisek do zdarzenia, gdy działa admin.
+function ownerOrAdmin(ownerKey, me, ctx, msg) {
+  if (ownerKey === me.key) return {};
+  if (ctx.admin) return { admin: true };
+  fail(msg);
+}
+function findExpense(id) {
+  const e = state.expenses.find(x => x.id === id);
+  if (!e) fail('Tego wydatku już nie ma.');
+  return e;
+}
+function expenseFields(body, settle) {
+  const amount = grosze(body.amount);
+  const payer = knownPerson(body.payer, 'kto płaci');
+  if (!Array.isArray(body.split) || !body.split.length) fail('Zaznacz, kto się składa.');
+  const split = [...new Set(body.split.map(k => knownPerson(k, 'kto się składa')))];
+  if (settle && (split.length !== 1 || split[0] === payer)) fail('Zwrot musi iść od jednej osoby do innej.');
+  const title = settle ? 'Zwrot' : clean(body.title, 60);
+  if (!title) fail('Wpisz, za co.');
+  return { title, amount, payer, split };
+}
+// Zmiana klucza osoby we wszystkich miejscach (po zmianie imienia).
+function rekey(from, to) {
+  state.people[to] = state.people[from]; delete state.people[from];
+  for (const m of [state.plans, state.locations]) if (m[from]) { m[to] = m[from]; delete m[from]; }
+  for (const m of Object.values(state.interest)) if (from in m) { m[to] = m[from]; delete m[from]; }
+  for (const i of state.ideas) if (i.byKey === from) i.byKey = to;
+  for (const x of state.expenses) {
+    if (x.payer === from) x.payer = to;
+    if (x.byKey === from) x.byKey = to;
+    x.split = x.split.map(k => k === from ? to : k);
+  }
+  for (const [a, b] of Object.entries(state.aliases)) if (b === from) state.aliases[a] = to;
+  delete state.aliases[to];
+  state.aliases[from] = to;
+}
 function findIdea(id) {
   const idea = state.ideas.find(i => i.id === id);
   if (!idea) fail('Tego pomysłu już nie ma.');
@@ -193,25 +233,25 @@ const actions = {
     log(me.name, 'idea', { idea: title });
   },
 
-  ideaEdit(body) {
+  ideaEdit(body, ctx) {
     const me = person(body);
     const idea = findIdea(body.id);
-    if (idea.byKey !== me.key) fail('Pomysł może edytować tylko osoba, która go dodaje.');
+    const asAdmin = ownerOrAdmin(idea.byKey, me, ctx, 'Pomysł może edytować tylko osoba, która go dodaje.');
     const next = ideaFields(body);
     if (next.title === idea.title && next.link === idea.link && next.cat === idea.cat) return;
     const from = idea.title;
     Object.assign(idea, next);
-    log(me.name, 'idea_edit', { idea: idea.title, ...(from !== idea.title ? { from } : {}) });
+    log(me.name, 'idea_edit', { idea: idea.title, ...(from !== idea.title ? { from } : {}), ...asAdmin });
   },
 
-  ideaDelete(body) {
+  ideaDelete(body, ctx) {
     const me = person(body);
     const idea = findIdea(body.id);
-    if (idea.byKey !== me.key) fail('Pomysł może usunąć tylko osoba, która go dodaje.');
+    const asAdmin = ownerOrAdmin(idea.byKey, me, ctx, 'Pomysł może usunąć tylko osoba, która go dodaje.');
     state.ideas = state.ideas.filter(i => i !== idea);
     delete state.interest[idea.id];
     unplace(idea.id);
-    log(me.name, 'idea_del', { idea: idea.title });
+    log(me.name, 'idea_del', { idea: idea.title, ...asAdmin });
   },
 
   interest(body) {
@@ -269,29 +309,66 @@ const actions = {
   // Wydatek dzielony po równo między osoby z listy split. settle = zwrot długu (payer oddaje split[0]).
   expense(body) {
     const me = person(body);
-    const amount = grosze(body.amount);
-    const payer = knownPerson(body.payer, 'kto płaci');
-    if (!Array.isArray(body.split) || !body.split.length) fail('Zaznacz, kto się składa.');
-    const split = [...new Set(body.split.map(k => knownPerson(k, 'kto się składa')))];
-    const settle = !!body.settle;
-    if (settle && (split.length !== 1 || split[0] === payer)) fail('Zwrot musi iść od jednej osoby do innej.');
-    const title = settle ? 'Zwrot' : clean(body.title, 60);
-    if (!title) fail('Wpisz, za co.');
-    const e = { id: crypto.randomBytes(6).toString('base64url'), title, amount, payer, split, byKey: me.key, at: Date.now(), ...(settle ? { settle } : {}) };
+    const f = expenseFields(body, !!body.settle);
+    const e = { id: crypto.randomBytes(6).toString('base64url'), ...f, byKey: me.key, at: Date.now(), ...(body.settle ? { settle: true } : {}) };
     state.expenses.push(e);
-    const pay = state.people[payer].name;
-    log(me.name, settle ? 'settle' : 'expense', settle
-      ? { amount, payer: pay, to: state.people[split[0]].name }
-      : { idea: title, amount, payer: pay, n: split.length });
+    const pay = state.people[f.payer].name;
+    log(me.name, e.settle ? 'settle' : 'expense', e.settle
+      ? { amount: f.amount, payer: pay, to: state.people[f.split[0]].name }
+      : { idea: f.title, amount: f.amount, payer: pay, n: f.split.length });
   },
 
-  expenseDelete(body) {
+  expenseEdit(body, ctx) {
     const me = person(body);
-    const e = state.expenses.find(x => x.id === body.id);
-    if (!e) fail('Tego wydatku już nie ma.');
-    if (e.byKey !== me.key) fail('Wydatek może usunąć tylko osoba, która go dodaje.');
+    const e = findExpense(body.id);
+    const asAdmin = ownerOrAdmin(e.byKey, me, ctx, 'Wydatek może edytować tylko osoba, która go dodaje.');
+    const f = expenseFields(body, !!e.settle);
+    if (f.title === e.title && f.amount === e.amount && f.payer === e.payer && f.split.join() === e.split.join()) return;
+    Object.assign(e, f);
+    log(me.name, 'expense_edit', { idea: e.settle ? 'Zwrot' : e.title, amount: e.amount, ...asAdmin });
+  },
+
+  expenseDelete(body, ctx) {
+    const me = person(body);
+    const e = findExpense(body.id);
+    const asAdmin = ownerOrAdmin(e.byKey, me, ctx, 'Wydatek może usunąć tylko osoba, która go dodaje.');
     state.expenses = state.expenses.filter(x => x !== e);
-    log(me.name, 'expense_del', { idea: e.title, amount: e.amount });
+    log(me.name, 'expense_del', { idea: e.title, amount: e.amount, ...asAdmin });
+  },
+
+  // ---------- tylko admin ----------
+  personRename(body, ctx) {
+    const me = person(body);
+    if (!ctx.admin) fail('To może zrobić tylko admin.');
+    const key = knownPerson(body.key, 'zmiana imienia');
+    const name = clean(body.newName, 24);
+    if (!name) fail('Wpisz nowe imię.');
+    const old = state.people[key].name;
+    if (name === old) return;
+    const nk = keyOf(name);
+    if (nk !== key) {
+      if (state.people[nk]) fail(`Osoba „${state.people[nk].name}” już jest.`);
+      rekey(key, nk);
+    }
+    state.people[nk].name = name;
+    for (const i of state.ideas) if (i.byKey === nk) i.by = name;
+    log(me.name, 'person_rename', { from: old, to: name, admin: true });
+  },
+
+  personDelete(body, ctx) {
+    const me = person(body);
+    if (!ctx.admin) fail('To może zrobić tylko admin.');
+    const key = knownPerson(body.key, 'usuwanie');
+    if (key === me.key) fail('Nie możesz usunąć samego siebie.');
+    if (state.expenses.some(x => x.payer === key || x.split.includes(key)))
+      fail('Ta osoba ma wydatki. Najpierw je usuń albo zmień, potem usuń osobę.');
+    const name = state.people[key].name;
+    delete state.people[key];
+    delete state.plans[key];
+    delete state.locations[key];
+    for (const [id, m] of Object.entries(state.interest)) { delete m[key]; if (!Object.keys(m).length) delete state.interest[id]; }
+    for (const [a, b] of Object.entries(state.aliases)) if (a === key || b === key) delete state.aliases[a];
+    log(me.name, 'person_del', { to: name, admin: true });
   },
 
   away(body) {
@@ -307,22 +384,27 @@ const actions = {
 };
 
 // ---------- hasło i sesja ----------
-const secret = crypto.createHash('sha256').update('pga-sesja\0' + PASSWORD).digest();
-const sign = id => crypto.createHmac('sha256', secret).update(id).digest('base64url');
-function newToken() {
+// Ciasteczka podpisane HMAC kluczem z hasła: zmiana hasła wylogowuje wszystkich.
+const keyFor = (purpose, pass) => crypto.createHash('sha256').update(purpose + '\0' + pass).digest();
+const SESSION_KEY = keyFor('pga-sesja', PASSWORD);
+const ADMIN_KEY = keyFor('pga-admin', ADMIN_PASSWORD);
+const ADMIN_COOKIE = 'admin', ADMIN_DAYS = 30;
+const sign = (key, id) => crypto.createHmac('sha256', key).update(id).digest('base64url');
+function newToken(key = SESSION_KEY) {
   const id = crypto.randomBytes(16).toString('base64url') + '.' + Date.now().toString(36);
-  return id + '.' + sign(id);
+  return id + '.' + sign(key, id);
 }
-function validToken(tok) {
+function validToken(tok, key = SESSION_KEY, days = SESSION_DAYS) {
   if (!tok) return false;
   const i = tok.lastIndexOf('.');
   if (i < 0) return false;
   const id = tok.slice(0, i), sig = Buffer.from(tok.slice(i + 1));
-  const good = Buffer.from(sign(id));
+  const good = Buffer.from(sign(key, id));
   if (sig.length !== good.length || !crypto.timingSafeEqual(sig, good)) return false;
   const born = parseInt(id.split('.')[1], 36);
-  return Date.now() - born < SESSION_DAYS * 864e5;
+  return Date.now() - born < days * 864e5;
 }
+const isAdmin = req => !!ADMIN_PASSWORD && validToken(cookies(req)[ADMIN_COOKIE], ADMIN_KEY, ADMIN_DAYS);
 function cookies(req) {
   const out = {};
   for (const part of (req.headers.cookie || '').split(';')) {
@@ -332,14 +414,14 @@ function cookies(req) {
   return out;
 }
 const authed = req => !PASSWORD || validToken(cookies(req)[COOKIE]);
-function passwordOk(given) {
+function passwordOk(given, expected = PASSWORD) {
   const a = crypto.createHash('sha256').update(String(given ?? '')).digest();
-  const b = crypto.createHash('sha256').update(PASSWORD).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
   return crypto.timingSafeEqual(a, b);
 }
-function setCookie(req, res, value, maxAge) {
+function setCookie(req, res, value, maxAge, name = COOKIE) {
   const secure = req.headers['x-forwarded-proto'] === 'https' || req.socket.encrypted;
-  res.setHeader('Set-Cookie', `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`);
+  res.setHeader('Set-Cookie', `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`);
 }
 
 // Limit błędnych prób: 8 na IP na 10 minut.
@@ -445,14 +527,33 @@ async function handle(req, res) {
   }
   if (p === '/api/logout' && req.method === 'POST') {
     setCookie(req, res, '', 0);
+    res.appendHeader('Set-Cookie', `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
     return send(res, 200, { ok: true });
   }
 
   if (!authed(req)) return send(res, 401, { error: 'Podaj hasło ekipy.' });
 
+  // Tryb admina: osobne hasło (ADMIN_PASSWORD), osobne ciasteczko, ten sam limit prób.
+  if (p === '/api/adminLogin' && req.method === 'POST') {
+    if (!ADMIN_PASSWORD) return send(res, 400, { error: 'Tryb admina jest wyłączony (brak ADMIN_PASSWORD).' });
+    const ip = clientIp(req);
+    if (limited(ip)) return send(res, 429, { error: 'Za dużo prób. Spróbuj za kilka minut.' });
+    const body = await readBody(req);
+    if (!passwordOk(body.password, ADMIN_PASSWORD)) {
+      attempts.get(ip).push(Date.now());
+      return send(res, 401, { error: 'Złe hasło admina.' });
+    }
+    setCookie(req, res, newToken(ADMIN_KEY), ADMIN_DAYS * 86400, ADMIN_COOKIE);
+    return send(res, 200, { ...publicState(), admin: true, adminEnabled: true });
+  }
+  if (p === '/api/adminLogout' && req.method === 'POST') {
+    setCookie(req, res, '', 0, ADMIN_COOKIE);
+    return send(res, 200, { ...publicState(), admin: false, adminEnabled: true });
+  }
+
   if (p === '/api/state' && req.method === 'GET') {
     if (url.searchParams.get('v') === String(state.v)) return send(res, 200, { unchanged: true, v: state.v });
-    return send(res, 200, publicState());
+    return send(res, 200, { ...publicState(), admin: isAdmin(req), adminEnabled: !!ADMIN_PASSWORD });
   }
   if (p === '/api/export' && req.method === 'GET') {
     const day = new Date().toISOString().slice(0, 10);
@@ -462,15 +563,16 @@ async function handle(req, res) {
   const name = p.slice(5);
   if (req.method === 'POST' && Object.hasOwn(actions, name)) {
     const body = await readBody(req);
+    const ctx = { admin: isAdmin(req) };
     const before = JSON.stringify(state);
     try {
-      actions[name](body);
+      actions[name](body, ctx);
     } catch (e) {
       state = JSON.parse(before);                 // akcja nie zostawia połowicznych zmian
       throw e;
     }
     if (JSON.stringify(state) !== before) { state.v++; save(); }
-    return send(res, 200, publicState());
+    return send(res, 200, { ...publicState(), admin: ctx.admin, adminEnabled: !!ADMIN_PASSWORD });
   }
   send(res, 404, { error: 'Nie ma takiej akcji.' });
 }
