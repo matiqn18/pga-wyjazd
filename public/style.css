@@ -111,8 +111,10 @@ footer a { color: var(--ink-soft); }
 .cat-inne { --c: var(--c-inne); }
 
 /* ---------- zakładka pomysłów ---------- */
-.ideas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; align-items: start; }
+/* Wszystkie karty pomysłów mają wysokość najwyższej (1fr), przyciski zawsze na dole karty. */
+.ideas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); grid-auto-rows: 1fr; gap: 18px; }
 .idea {
+  display: flex; flex-direction: column;
   background: var(--paper); border: 2px solid var(--ink); border-radius: 14px;
   box-shadow: 4px 4px 0 var(--ink); overflow: hidden;
 }
@@ -123,11 +125,15 @@ footer a { color: var(--ink-soft); }
 .idea-head svg { width: 26px; height: 26px; fill: var(--ink); }
 .idea-head h3 { overflow-wrap: anywhere; }
 .idea-head small { display: block; font-weight: 600; font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
-.idea-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 0.94rem; }
+.idea-body { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 0.94rem; }
 .idea-body p { margin: 0; overflow-wrap: anywhere; }
 .idea-body a { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
 .idea-who { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-.idea-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; margin-top: 2px; }
+.idea-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; padding-top: 2px; }
+/* Link i stopka zjeżdżają na dół karty; ocena zawsze w tym samym miejscu pod nagłówkiem. */
+.idea-who + .idea-link, .idea-who + .idea-actions { margin-top: auto; }
+.idea-link { padding-top: 6px; border-top: 1px solid var(--line); }
+.idea-head { min-height: 76px; }
 .idea-actions .mini { border-color: var(--ink); background: var(--paper); padding: 5px 12px; }
 .idea-actions .mini.go { background: var(--ink); color: var(--paper); }
 .jump { display: none; }

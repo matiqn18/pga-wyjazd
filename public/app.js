@@ -195,10 +195,10 @@ function renderIdeas() {
     return `<article class="idea cat-${esc(i.cat)}">
       <div class="idea-head">${shape(i.cat)}<div><h3>${esc(i.title)}</h3><small>${esc(CAT_NAMES[i.cat] || 'Inne')}</small></div></div>
       <div class="idea-body">
-        ${i.note ? `<p>${esc(i.note)}</p>` : ''}
-        ${host ? `<p><a href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a></p>` : ''}
         ${rateHTML(i.id)}
+        ${i.note ? `<p>${esc(i.note)}</p>` : ''}
         <div class="idea-who">${groupsHTML(fansOf(i.id))}</div>
+        ${host ? `<p class="idea-link"><a href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${esc(host)} ↗</a></p>` : ''}
         <div class="idea-actions">
           <span class="muted">${slot ? `W planie: <strong>${esc(slotLabel(slot))}</strong>` : `Dodaje: ${esc(i.by)}`}</span>
           ${canEdit(i) ? `<span class="own-actions"><button type="button" class="mini" data-edit="${esc(i.id)}">Edytuj</button><button type="button" class="mini" data-del="${esc(i.id)}">Usuń</button></span>` : ''}
