@@ -4,6 +4,8 @@ const { SCHEMA, migrate } = require('./migrations');
 
 const LOCATION_TTL = 2 * 3600e3;
 
+const fresh = (locations, now) => Object.fromEntries(Object.entries(locations).filter(([, l]) => now - l.t < LOCATION_TTL));
+
 /**
  * Stan całego wyjazdu (to, co ląduje w pliku JSON) i operacje na nim jako całości:
  * wczytanie z migracją, transakcja z wycofaniem zmian, widok publiczny.
@@ -18,6 +20,8 @@ const LOCATION_TTL = 2 * 3600e3;
  *   expenses   [ { id, title, amount, payer, split, settle?, byKey, at } ]   kwoty w groszach
  *   aliases    { [stary klucz]: nowy klucz }                     po zmianie imienia przez admina
  *   events     [ { t, who, type, … } ]
+ *   guests          { [klucz]: { name, joinedAt } }        goście z /gdzie, osobno od ekipy
+ *   guestLocations  { [klucz]: { lat, lng, acc, note, t } }
  *   v          numer wersji, rośnie przy każdej zmianie
  */
 class Trip {
@@ -27,6 +31,7 @@ class Trip {
     return {
       schema: SCHEMA, v: 1, people: {}, ideas: [], interest: {}, board: { slots: {} },
       plans: {}, locations: {}, expenses: [], aliases: {}, events: [],
+      guests: {}, guestLocations: {},
     };
   }
 
@@ -80,10 +85,23 @@ class Trip {
       interest: d.interest,
       board: d.board,
       plans: d.plans,
-      locations: Object.fromEntries(Object.entries(d.locations).filter(([, l]) => now - l.t < LOCATION_TTL)),
+      locations: fresh(d.locations, now),
       expenses: d.expenses,
       aliases: d.aliases,
       events: d.events,
+    };
+  }
+
+  /** To, co widzi gość na /gdzie: tylko goście i ich lokalizacje. */
+  toGuestPublic() {
+    const d = this.data;
+    return {
+      v: d.v,
+      config: { title: this.config.title },
+      people: Object.entries(d.guests)
+        .map(([key, p]) => ({ key, name: p.name, joinedAt: p.joinedAt }))
+        .sort((a, b) => a.joinedAt - b.joinedAt),
+      locations: fresh(d.guestLocations, Date.now()),
     };
   }
 }

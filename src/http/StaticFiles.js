@@ -41,7 +41,8 @@ class StaticFiles {
   }
 
   serve(req, res, pathname, send) {
-    const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
+    let rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
+    if (!path.extname(rel)) rel += '.html'; // /gdzie → gdzie.html
     const file = path.join(this.root, rel);
     if (!this.contains(file)) return send(res, 404, 'Nie ma.');
 

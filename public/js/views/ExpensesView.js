@@ -19,6 +19,7 @@ export class ExpensesView extends View {
     this.settle = $('#exp-settle');
     this.balance = $('#exp-balance');
     this.list = $('#exp-list');
+    this.count = $('#exp-count');
     this.peopleSignature = ''; // lista osób, dla której zbudowano pola wyboru
 
     this.on('click', '[data-settle]', el => this.markSettled(el.dataset.settle));
@@ -28,6 +29,16 @@ export class ExpensesView extends View {
     this.amount.addEventListener('input', () => this.updateSharePreview());
     this.split.addEventListener('change', () => this.updateSharePreview());
     this.onSubmit(this.form, form => this.add(form));
+    this.setupFolds();
+  }
+
+  /** „Bilans” i „Lista wydatków” zwijają się osobno; stan zapamiętany na tym urządzeniu. */
+  setupFolds() {
+    for (const fold of $$('details[data-fold]', this.root)) {
+      const pref = 'wydatki-' + fold.dataset.fold;
+      fold.open = this.app.prefs.get(pref, '1', ['0', '1']) === '1';
+      fold.addEventListener('toggle', () => this.app.prefs.set(pref, fold.open ? '1' : '0'));
+    }
   }
 
   render() {
@@ -39,6 +50,7 @@ export class ExpensesView extends View {
     const balances = m.balances();
     this.settle.innerHTML = m.expenses.length ? this.settleBox(m.transfers(balances)) : '';
     this.balance.innerHTML = m.people.map(p => this.balanceRow(p, balances[p.key] || 0)).join('');
+    this.count.textContent = m.expenses.length ? `(${m.expenses.length})` : '';
     this.list.innerHTML = [...m.expenses].reverse().map(x => this.expenseCard(x)).join('') || '<p class="muted">Lista jest pusta.</p>';
   }
 

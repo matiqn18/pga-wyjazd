@@ -52,6 +52,7 @@ function readJson(req) {
  *   POST /api/adminLogin, /api/adminLogout
  *   GET  /api/state?v=N           – stan (albo {unchanged}), GET /api/export – cały plik danych
  *   POST /api/<akcja>             – zmiany przez Actions
+ *   /api/guest/…                  – podstrona /gdzie (hasło gości): login, logout, state, locate, locateClear
  */
 class HttpServer {
   constructor({ config, trip, store, actions }) {
@@ -71,6 +72,10 @@ class HttpServer {
       'POST /api/adminLogout': (req, res) => this.adminLogout(req, res),
       'GET /api/state': (req, res, url) => this.state(req, res, url),
       'GET /api/export': (req, res) => this.export(req, res),
+    };
+    this.guestPublicRoutes = {
+      'POST /api/guest/login': (req, res) => this.guestLogin(req, res),
+      'POST /api/guest/logout': (req, res) => this.guestLogout(req, res),
     };
   }
 
@@ -98,6 +103,7 @@ class HttpServer {
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Tylko GET.');
       return this.files.serve(req, res, url.pathname, send);
     }
+    if (url.pathname.startsWith('/api/guest/')) return this.handleGuest(req, res, url, route);
     if (this.publicRoutes[route]) return this.publicRoutes[route](req, res, url);
     if (!this.auth.isTeamMember(req)) return send(res, 401, { error: 'Podaj hasło ekipy.' });
     if (this.teamRoutes[route]) return this.teamRoutes[route](req, res, url);
@@ -105,6 +111,21 @@ class HttpServer {
     const action = url.pathname.slice('/api/'.length);
     if (req.method === 'POST' && this.actions.has(action)) return this.runAction(req, res, action);
     return send(res, 404, { error: 'Nie ma takiej akcji.' });
+  }
+
+  /** Podstrona gości: osobne hasło, osobna lista osób i lokalizacji. */
+  async handleGuest(req, res, url, route) {
+    if (!this.config.guestEnabled) return send(res, 404, { error: 'Strona gości jest wyłączona (brak GUEST_PASSWORD).' });
+    if (this.guestPublicRoutes[route]) return this.guestPublicRoutes[route](req, res);
+    if (!this.auth.isGuest(req)) return send(res, 401, { error: 'Podaj hasło.' });
+    if (route === 'GET /api/guest/state') {
+      if (url.searchParams.get('v') === String(this.trip.version)) return send(res, 200, { unchanged: true, v: this.trip.version });
+      return send(res, 200, this.trip.toGuestPublic());
+    }
+    const action = url.pathname.slice('/api/guest/'.length);
+    if (req.method !== 'POST' || !this.actions.hasGuest(action)) return send(res, 404, { error: 'Nie ma takiej akcji.' });
+    if (this.actions.runGuest(action, await readJson(req))) this.store.write(this.trip.data);
+    return send(res, 200, this.trip.toGuestPublic());
   }
 
   /** Stan dla przeglądarki razem z informacją o trybie admina. */
@@ -138,6 +159,20 @@ class HttpServer {
     return send(res, 200, this.stateFor(true));
   }
 
+  async guestLogin(req, res) {
+    const { password } = await readJson(req);
+    const result = this.auth.checkPassword(req, password, this.config.guestPassword);
+    if (result === 'blocked') return send(res, 429, { error: 'Za dużo prób. Spróbuj za kilka minut.' });
+    if (result === 'wrong') return send(res, 401, { error: 'Złe hasło.' });
+    res.setHeader('Set-Cookie', Auth.cookie(req, Auth.GUEST_COOKIE, this.auth.guest.issue(), this.auth.guest.maxAgeSeconds));
+    return send(res, 200, { ok: true });
+  }
+
+  guestLogout(req, res) {
+    res.setHeader('Set-Cookie', Auth.cookie(req, Auth.GUEST_COOKIE, '', 0));
+    return send(res, 200, { ok: true });
+  }
+
   adminLogout(req, res) {
     res.setHeader('Set-Cookie', Auth.cookie(req, Auth.ADMIN_COOKIE, '', 0));
     return send(res, 200, this.stateFor(false));
@@ -150,7 +185,9 @@ class HttpServer {
 
   export(req, res) {
     const day = new Date().toISOString().slice(0, 10);
-    return send(res, 200, this.trip.data, { 'Content-Disposition': `attachment; filename="pga-${day}.json"` });
+    // Goście to osobna grupa: ich dane zostają tylko w pliku na serwerze.
+    const { guests, guestLocations, ...teamData } = this.trip.data;
+    return send(res, 200, teamData, { 'Content-Disposition': `attachment; filename="pga-${day}.json"` });
   }
 
   async runAction(req, res, action) {

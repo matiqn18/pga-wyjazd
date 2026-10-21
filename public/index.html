@@ -122,10 +122,14 @@
       <p id="exp-summary" class="hint"></p>
       <a href="#exp" class="btn-line jump">Dodaj wydatek</a>
       <div id="exp-settle"></div>
-      <h2>Bilans</h2>
-      <div id="exp-balance" class="balance"></div>
-      <h2>Lista wydatków</h2>
-      <div id="exp-list" class="exp-list"></div>
+      <details class="history" data-fold="bilans" open>
+        <summary>Bilans</summary>
+        <div id="exp-balance" class="balance"></div>
+      </details>
+      <details class="history" data-fold="lista" open>
+        <summary>Lista wydatków <small id="exp-count"></small></summary>
+        <div id="exp-list" class="exp-list"></div>
+      </details>
     </div>
   </section>
 </main>

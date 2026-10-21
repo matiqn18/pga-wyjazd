@@ -5,11 +5,21 @@ const { clean } = require('../util/text');
 
 const round5 = x => Math.round(x * 1e5) / 1e5;
 
-/** „Jestem tutaj”: jednorazowo udostępniona pozycja, ważna Trip.LOCATION_TTL. */
+/**
+ * „Jestem tutaj”: jednorazowo udostępniona pozycja, ważna Trip.LOCATION_TTL.
+ * `field` = mapa w danych (ekipa: `locations`, goście: `guestLocations`);
+ * `log: false` = bez wpisów w historii ekipy.
+ */
 class Locations extends Service {
-  constructor(trip, ttl) {
+  constructor(trip, ttl, { field = 'locations', log = true } = {}) {
     super(trip);
     this.ttl = ttl;
+    this.field = field;
+    this.log = log;
+  }
+
+  get map() {
+    return this.data[this.field];
   }
 
   share(actor, { lat, lng, acc, note }) {
@@ -26,21 +36,21 @@ class Locations extends Service {
       note: clean(note, 60),
       t: Date.now(),
     };
-    this.data.locations[actor.key] = entry;
+    this.map[actor.key] = entry;
     this.dropExpired();
     // Współrzędne nie trafiają do historii, tylko sam fakt udostępnienia.
-    this.record(actor, 'locate', entry.note ? { note: entry.note } : {});
+    if (this.log) this.record(actor, 'locate', entry.note ? { note: entry.note } : {});
   }
 
   clear(actor) {
-    if (!this.data.locations[actor.key]) return;
-    delete this.data.locations[actor.key];
-    this.record(actor, 'locate_off');
+    if (!this.map[actor.key]) return;
+    delete this.map[actor.key];
+    if (this.log) this.record(actor, 'locate_off');
   }
 
   dropExpired() {
     const now = Date.now();
-    for (const [key, l] of Object.entries(this.data.locations)) if (now - l.t >= this.ttl) delete this.data.locations[key];
+    for (const [key, l] of Object.entries(this.map)) if (now - l.t >= this.ttl) delete this.map[key];
   }
 }
 

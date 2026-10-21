@@ -36,6 +36,7 @@ $env:PASSWORD="test"; node server.js   # PowerShell
 
 - `PASSWORD` – wspólne hasło ekipy; bez niego strona jest otwarta
 - `ADMIN_PASSWORD` – hasło admina („Tryb admina” na dole strony): edycja i usuwanie wszystkich pomysłów i wydatków, zmiana imion, usuwanie osób; puste = wyłączone
+- `GUEST_PASSWORD` – hasło gości do podstrony `/gdzie` (samo „Gdzie kto jest”); goście to osobna grupa: widzą tylko siebie, w głównej aplikacji i w eksporcie się nie pojawiają; puste = wyłączone
 - `TITLE` – nagłówek strony
 - `DAYS` – dni i pory dnia, np. `Piątek:rano,popołudnie,wieczór;Sobota:rano,popołudnie,wieczór`
 
@@ -60,6 +61,7 @@ src/
     History.js               historia zdarzeń
     Service.js               baza serwisów: dane, historia, uprawnienia (autor / admin)
     People.js Ideas.js Board.js Locations.js Expenses.js   logika poszczególnych części
+    Guests.js                goście z /gdzie (osobna lista osób)
     Actions.js               akcje API: POST /api/<nazwa> → serwis
   http/
     HttpServer.js            trasy, odpowiedzi JSON
@@ -67,7 +69,9 @@ src/
     StaticFiles.js           pliki z public/ z wersjami w adresach (?v=…)
 public/
   app.js                     punkt wejścia strony
+  gdzie.html, gdzie.js       podstrona gości /gdzie
   js/App.js                  stan, odpytywanie serwera, zakładki, okna
+  js/GuestApp.js             podstrona gości: WherePanel + logowanie i wybór imienia
   js/core/                   Api, Identity, Prefs, Toast, format, dom
   js/model/TripModel.js      pytania o stan: oceny, plan, bilans, przelewy
   js/ui/                     wspólne kawałki HTML, opisy historii

@@ -43,18 +43,24 @@ class Config {
       publicDir: path.join(rootDir, 'public'),
       password: env.PASSWORD || '',
       adminPassword: env.ADMIN_PASSWORD || '',
+      guestPassword: env.GUEST_PASSWORD || '',
       title: env.TITLE || 'PGA: centrum wyjazdu',
       schedule: new Schedule(env.DAYS || DEFAULT_DAYS),
     });
   }
 
-  constructor({ port, dataDir, publicDir, password, adminPassword, title, schedule }) {
-    Object.assign(this, { port, dataDir, publicDir, password, adminPassword, title, schedule });
+  constructor({ port, dataDir, publicDir, password, adminPassword, guestPassword, title, schedule }) {
+    Object.assign(this, { port, dataDir, publicDir, password, adminPassword, guestPassword, title, schedule });
     this.categories = Config.CATEGORIES;
   }
 
   get adminEnabled() {
     return Boolean(this.adminPassword);
+  }
+
+  /** Podstrona gości /gdzie działa tylko z ustawionym GUEST_PASSWORD. */
+  get guestEnabled() {
+    return Boolean(this.guestPassword);
   }
 }
 

@@ -5,6 +5,7 @@ const Board = require('./Board');
 const Ideas = require('./Ideas');
 const Locations = require('./Locations');
 const Expenses = require('./Expenses');
+const Guests = require('./Guests');
 
 /**
  * Wszystkie zmiany stanu dostępne przez API: POST /api/<nazwa>.
@@ -42,10 +43,31 @@ class Actions {
       personRename: (me, b, ctx) => this.people.rename(me, ctx, b.key, b.newName),
       personDelete: (me, b, ctx) => this.people.remove(me, ctx, b.key),
     };
+
+    // Goście (POST /api/guest/<nazwa>): tylko własna lista lokalizacji.
+    this.guests = new Guests(trip);
+    this.guestLocations = new Locations(trip, Trip.LOCATION_TTL, { field: 'guestLocations', log: false });
+    this.guestHandlers = {
+      join: () => {},
+      locate: (me, b) => this.guestLocations.share(me, b),
+      locateClear: (me) => this.guestLocations.clear(me),
+    };
   }
 
   has(name) {
     return Object.hasOwn(this.handlers, name);
+  }
+
+  hasGuest(name) {
+    return Object.hasOwn(this.guestHandlers, name);
+  }
+
+  /** Akcja gościa; zwraca true, jeśli stan się zmienił. */
+  runGuest(name, body) {
+    return this.trip.transaction(() => {
+      const actor = this.guests.resolve(body.name);
+      this.guestHandlers[name](actor, body);
+    });
   }
 
   /** Wykonuje akcję; zwraca true, jeśli stan się zmienił. `ctx.admin` = tryb admina. */

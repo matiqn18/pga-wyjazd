@@ -10,10 +10,15 @@ export class ApiError extends Error {
 }
 
 export class Api {
+  /** `base` = przedrostek tras, np. 'guest/' dla podstrony gości. */
+  constructor(base = '') {
+    this.base = '/api/' + base;
+  }
+
   async request(method, path, body) {
     let response;
     try {
-      response = await fetch('/api/' + path, {
+      response = await fetch(this.base + path, {
         method,
         headers: body ? { 'Content-Type': 'application/json' } : {},
         body: body ? JSON.stringify(body) : undefined,

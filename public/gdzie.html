@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gdzie kto jest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+
+<header class="top">
+  <h1>Gdzie kto jest</h1>
+  <button type="button" id="me-chip" class="me" title="Zmień osobę"></button>
+</header>
+
+<main class="guest">
+  <section class="where" aria-label="Gdzie kto jest">
+    <div id="where-list"></div>
+    <form id="where-form" class="where-form" autocomplete="off">
+      <label for="where-note">Dopisek, jeśli chcesz</label>
+      <div class="where-row">
+        <input id="where-note" maxlength="60" placeholder="np. pawilon 5, wejście">
+        <button type="submit" class="btn">Jestem tutaj</button>
+      </div>
+      <p class="where-hint">Wysyła się raz, po stuknięciu. Znika sama po 2 godzinach.</p>
+    </form>
+  </section>
+</main>
+
+<footer>
+  <button type="button" id="logout" class="linklike">Wyloguj z tego urządzenia</button>
+</footer>
+
+<dialog id="login">
+  <form id="login-form">
+    <h2>Gdzie kto jest</h2>
+    <label for="login-pass">Hasło</label>
+    <input id="login-pass" type="password" autocomplete="current-password" required>
+    <p id="login-error" class="error" role="alert"></p>
+    <button type="submit" class="btn">Wejdź</button>
+  </form>
+</dialog>
+
+<dialog id="who">
+  <form id="who-form" method="dialog">
+    <h2>Jako kto się przedstawiasz?</h2>
+    <div id="who-list" class="who-list"></div>
+    <label for="who-name">Nowa osoba</label>
+    <input id="who-name" maxlength="24" placeholder="imię albo ksywka" autocomplete="given-name">
+    <button type="submit" class="btn">To ja</button>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="gdzie.js"></script>
+</body>
+</html>

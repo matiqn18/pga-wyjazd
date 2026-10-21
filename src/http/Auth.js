@@ -6,19 +6,23 @@ const RateLimiter = require('./RateLimiter');
 const LOCAL_PEER = /^(::1|127\.|::ffff:127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::ffff:(10|172|192)\.)/;
 
 /**
- * Dwa poziomy dostępu, oba przez ciasteczka HttpOnly:
+ * Poziomy dostępu, wszystkie przez ciasteczka HttpOnly:
  *   – „sesja”: wspólne hasło ekipy (bez hasła strona jest otwarta),
- *   – „admin”: osobne hasło admina (bez niego tryb admina jest wyłączony).
+ *   – „admin”: osobne hasło admina (bez niego tryb admina jest wyłączony),
+ *   – „gosc”: hasło gości, tylko podstrona /gdzie (bez niego wyłączona).
  */
 class Auth {
   static TEAM_COOKIE = 'sesja';
   static ADMIN_COOKIE = 'admin';
+  static GUEST_COOKIE = 'gosc';
 
-  constructor({ password, adminPassword }) {
+  constructor({ password, adminPassword, guestPassword }) {
     this.password = password;
     this.adminPassword = adminPassword;
+    this.guestPassword = guestPassword;
     this.team = new TokenSigner('pga-sesja', password, 90);
     this.admin = new TokenSigner('pga-admin', adminPassword, 30);
+    this.guest = new TokenSigner('pga-gosc', guestPassword, 90);
     this.limiter = new RateLimiter();
   }
 
@@ -28,6 +32,10 @@ class Auth {
 
   isAdmin(req) {
     return Boolean(this.adminPassword) && this.admin.verify(Auth.cookies(req)[Auth.ADMIN_COOKIE]);
+  }
+
+  isGuest(req) {
+    return Boolean(this.guestPassword) && this.guest.verify(Auth.cookies(req)[Auth.GUEST_COOKIE]);
   }
 
   /**
