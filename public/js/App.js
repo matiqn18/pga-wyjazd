@@ -12,6 +12,7 @@ import { LoginDialog } from './dialogs/LoginDialog.js';
 import { WhoDialog } from './dialogs/WhoDialog.js';
 import { ExpensesView } from './views/ExpensesView.js';
 import { IdeasView } from './views/IdeasView.js';
+import { MediaView } from './views/MediaView.js';
 import { MyPlanView } from './views/MyPlanView.js';
 import { PeopleView } from './views/PeopleView.js';
 import { PlanView } from './views/PlanView.js';
@@ -37,6 +38,7 @@ export class App {
       plan: new PlanView(this),
       moj: new MyPlanView(this),
       wydatki: new ExpensesView(this),
+      zdjecia: new MediaView(this),
     };
     this.dialogs = {
       login: new LoginDialog(this),

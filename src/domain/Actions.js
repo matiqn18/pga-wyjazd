@@ -70,6 +70,13 @@ class Actions {
     });
   }
 
+  /** Osoba z imienia poza akcjami stanu (np. przy zdjęciach); `changed` = nowa osoba w ekipie. */
+  actor(name) {
+    let actor;
+    const changed = this.trip.transaction(() => { actor = this.people.resolve(name); });
+    return { actor, changed };
+  }
+
   /** Wykonuje akcję; zwraca true, jeśli stan się zmienił. `ctx.admin` = tryb admina. */
   run(name, body, ctx) {
     return this.trip.transaction(() => {

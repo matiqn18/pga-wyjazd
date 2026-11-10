@@ -2,6 +2,7 @@
 const http = require('http');
 const Auth = require('./Auth');
 const StaticFiles = require('./StaticFiles');
+const MediaRoutes = require('./MediaRoutes');
 const UserError = require('../util/UserError');
 
 const MAX_BODY = 16 * 1024;
@@ -52,16 +53,18 @@ function readJson(req) {
  *   POST /api/adminLogin, /api/adminLogout
  *   GET  /api/state?v=N           – stan (albo {unchanged}), GET /api/export – cały plik danych
  *   POST /api/<akcja>             – zmiany przez Actions
+ *   /api/media…                   – zdjęcia i filmy (MediaRoutes)
  *   /api/guest/…                  – podstrona /gdzie (hasło gości): login, logout, state, locate, locateClear
  */
 class HttpServer {
-  constructor({ config, trip, store, actions }) {
+  constructor({ config, trip, store, actions, media }) {
     this.config = config;
     this.trip = trip;
     this.store = store;
     this.actions = actions;
     this.auth = new Auth(config);
     this.files = new StaticFiles(config.publicDir);
+    this.media = new MediaRoutes({ media, trip, store, actions, auth: this.auth, send, readJson });
 
     this.publicRoutes = {
       'POST /api/login': (req, res) => this.login(req, res),
@@ -107,6 +110,7 @@ class HttpServer {
     if (this.publicRoutes[route]) return this.publicRoutes[route](req, res, url);
     if (!this.auth.isTeamMember(req)) return send(res, 401, { error: 'Podaj hasło ekipy.' });
     if (this.teamRoutes[route]) return this.teamRoutes[route](req, res, url);
+    if (url.pathname.startsWith('/api/media') && (await this.media.handle(req, res, url)) !== false) return;
 
     const action = url.pathname.slice('/api/'.length);
     if (req.method === 'POST' && this.actions.has(action)) return this.runAction(req, res, action);

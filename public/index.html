@@ -21,6 +21,7 @@
     <button type="button" data-view="plan" aria-pressed="false">Wspólny plan</button>
     <button type="button" data-view="moj" aria-pressed="false">Mój plan</button>
     <button type="button" data-view="wydatki" aria-pressed="false">Wydatki</button>
+    <button type="button" data-view="zdjecia" aria-pressed="false">Zdjęcia</button>
   </nav>
   <button type="button" id="me-chip" class="me" title="Zmień osobę"></button>
 </header>
@@ -131,6 +132,23 @@
         <div id="exp-list" class="exp-list"></div>
       </details>
     </div>
+  </section>
+
+  <section id="view-zdjecia" class="media-view" hidden>
+    <h2>Zdjęcia i filmy</h2>
+    <p id="media-summary" class="hint"></p>
+    <div class="media-actions">
+      <button type="button" id="media-pick" class="btn">Wrzuć zdjęcia i filmy</button>
+      <a id="media-zip" class="btn-line" href="/api/media/zip" download hidden>Pobierz wszystko (ZIP)</a>
+    </div>
+    <input id="media-input" type="file" multiple accept="image/*,video/*" hidden>
+    <div id="media-progress"></div>
+    <h2>Kto ile wrzucił</h2>
+    <div id="media-people" class="media-people"></div>
+    <details class="history">
+      <summary>Lista plików <small id="media-count"></small></summary>
+      <div id="media-list" class="media-list"></div>
+    </details>
   </section>
 </main>
 

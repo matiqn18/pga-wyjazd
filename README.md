@@ -6,6 +6,7 @@ Strona dla ekipy jadącej na PGA. Jedno wspólne hasło, bez kont:
 - **Kto co chce** – ranking pomysłów, kto jeszcze nie ocenił, historia zmian
 - **Wspólny plan** – plansza dni × pory dnia, kafelki przeciąga każdy
 - **Mój plan** – co mnie interesuje we wspólnym planie, „Nie mogę”, „Gdzie kto jest” (lokalizacja na 2 h)
+- **Zdjęcia** – każdy wrzuca zdjęcia i filmy z telefonu, potem pobranie wszystkiego (albo jednej osoby) jako ZIP
 
 Czysty Node, bez zależności i bez kroku budowania.
 
@@ -46,6 +47,10 @@ Jeden plik `/data/pga.json` na wolumenie `pga-data` (lokalnie `data/pga.json`, p
 Przy starcie serwer robi kopię do `data/backup/` (5 ostatnich).
 Pobranie: link na dole strony albo `/api/export` (po zalogowaniu).
 
+Zdjęcia i filmy: pliki w `data/media/`, spis w `data/media.json`. Nie trafiają do eksportu JSON ani do `backup/`.
+Wysyłanie idzie kawałkami po 8 MB (działa też za Cloudflare, przerwane połączenie wznawia się samo), duplikaty są pomijane.
+ZIP składa się w locie, bez kompresji i bez zapisu na dysk; powyżej 4 GB jako ZIP64. Serwer odmawia przyjęcia pliku, gdy na dysku zostałoby mniej niż 1 GB.
+
 ## Struktura kodu
 
 Bez zależności i bez kroku budowania: serwer to czysty Node (CommonJS), strona to moduły ES.
@@ -63,16 +68,20 @@ src/
     People.js Ideas.js Board.js Locations.js Expenses.js   logika poszczególnych części
     Guests.js                goście z /gdzie (osobna lista osób)
     Actions.js               akcje API: POST /api/<nazwa> → serwis
+  media/
+    MediaStore.js            zdjęcia i filmy: wysyłanie kawałkami, CRC i skrót, spis plików
+    Zip.js                   ZIP bez kompresji składany w locie (ZIP64)
   http/
     HttpServer.js            trasy, odpowiedzi JSON
     Auth.js TokenSigner.js RateLimiter.js   hasło ekipy, tryb admina, limit prób
     StaticFiles.js           pliki z public/ z wersjami w adresach (?v=…)
+    MediaRoutes.js           trasy /api/media…: spis, wysyłanie, usuwanie, ZIP
 public/
   app.js                     punkt wejścia strony
   gdzie.html, gdzie.js       podstrona gości /gdzie
   js/App.js                  stan, odpytywanie serwera, zakładki, okna
   js/GuestApp.js             podstrona gości: WherePanel + logowanie i wybór imienia
-  js/core/                   Api, Identity, Prefs, Toast, format, dom
+  js/core/                   Api, Identity, Prefs, Toast, format, dom, Uploader (wysyłanie plików)
   js/model/TripModel.js      pytania o stan: oceny, plan, bilans, przelewy
   js/ui/                     wspólne kawałki HTML, opisy historii
   js/views/                  zakładki (klasa View) + DragController, WherePanel

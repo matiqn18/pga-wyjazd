@@ -10,6 +10,15 @@ function plural(n, one, few, many) {
 
 export const osoby = n => plural(n, 'osoba', 'osoby', 'osób');
 export const pomysly = n => plural(n, 'pomysł', 'pomysły', 'pomysłów');
+export const pliki = n => plural(n, 'plik', 'pliki', 'plików');
+
+/** Rozmiar pliku: „850 KB”, „1,2 GB”. */
+export function bytes(n) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toLocaleString('pl-PL', { maximumFractionDigits: n < 10 && i > 1 ? 1 : 0 })} ${units[i]}`;
+}
 
 const PLN = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' });
 /** Kwota w groszach → „12,50 zł”. */

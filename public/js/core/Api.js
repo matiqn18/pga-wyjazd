@@ -41,6 +41,11 @@ export class Api {
     return this.request('POST', name, body);
   }
 
+  /** Zdjęcia i filmy: spis, początek wysyłania, usuwanie (kawałki wysyła Uploader). */
+  media() { return this.request('GET', 'media'); }
+  mediaStart(body) { return this.request('POST', 'media/start', body); }
+  mediaDelete(body) { return this.request('POST', 'media/delete', body); }
+
   login(password) { return this.request('POST', 'login', { password }); }
   logout() { return this.request('POST', 'logout', {}); }
   adminLogin(password) { return this.request('POST', 'adminLogin', { password }); }
