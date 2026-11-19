@@ -34,6 +34,11 @@ class Schedule {
 /** Ustawienia aplikacji, czytane raz przy starcie ze zmiennych środowiskowych. */
 class Config {
   static CATEGORIES = ['atrakcje', 'jedzenie', 'pga', 'inne'];
+  /** Zakładki strony (data-view w index.html) – admin może je ukrywać. */
+  static TABS = {
+    pomysly: 'Pomysły', chetni: 'Kto co chce', plan: 'Wspólny plan', moj: 'Mój plan',
+    wydatki: 'Wydatki', zdjecia: 'Zdjęcia', mikolaj: 'Mikołajki',
+  };
 
   static fromEnv(env, rootDir) {
     const dataDir = env.DATA_DIR || path.join(rootDir, 'data');
@@ -52,6 +57,7 @@ class Config {
   constructor({ port, dataDir, publicDir, password, adminPassword, guestPassword, title, schedule }) {
     Object.assign(this, { port, dataDir, publicDir, password, adminPassword, guestPassword, title, schedule });
     this.categories = Config.CATEGORIES;
+    this.tabs = Config.TABS;
   }
 
   get adminEnabled() {

@@ -17,6 +17,7 @@ import { MyPlanView } from './views/MyPlanView.js';
 import { PeopleView } from './views/PeopleView.js';
 import { PlanView } from './views/PlanView.js';
 import { SantaView } from './views/SantaView.js';
+import { TabsPanel } from './views/TabsPanel.js';
 
 const POLL_MS = 2500;
 
@@ -49,6 +50,7 @@ export class App {
       ideaEdit: new IdeaEditDialog(this),
       expenseEdit: new ExpenseEditDialog(this),
     };
+    this.tabsPanel = new TabsPanel(this);
     this.currentName = this.prefs.get('widok', 'pomysly', Object.keys(this.views));
 
     this.bindGlobalControls();
@@ -132,12 +134,25 @@ export class App {
 
   // ---------- rysowanie ----------
 
+  /** Zakładka ukryta przez admina jest niewidoczna dla ekipy (admin widzi wszystkie). */
+  isTabVisible(name) {
+    return Boolean(this.state.admin) || !(this.state.hiddenTabs || []).includes(name);
+  }
+
   render() {
     if (!this.state || !this.currentView.canRender()) return;
+    if (!this.isTabVisible(this.currentName)) {
+      this.currentName = Object.keys(this.views).find(name => this.isTabVisible(name));
+    }
     this.identity.followAlias(this.state);
     this.renderHeader();
+    this.tabsPanel.render();
     for (const [name, view] of Object.entries(this.views)) view.setVisible(name === this.currentName);
-    for (const tab of $$('.tabs button')) tab.setAttribute('aria-pressed', tab.dataset.view === this.currentName);
+    for (const tab of $$('.tabs button')) {
+      tab.setAttribute('aria-pressed', tab.dataset.view === this.currentName);
+      tab.hidden = !this.isTabVisible(tab.dataset.view);
+      tab.classList.toggle('is-off', (this.state.hiddenTabs || []).includes(tab.dataset.view));
+    }
     this.currentView.render();
   }
 
@@ -165,7 +180,7 @@ export class App {
   }
 
   show(viewName) {
-    if (!this.views[viewName]) return;
+    if (!this.views[viewName] || (this.state && !this.isTabVisible(viewName))) return;
     this.currentName = viewName;
     this.prefs.set('widok', viewName);
     for (const view of Object.values(this.views)) view.reset();

@@ -23,6 +23,7 @@ const fresh = (locations, now) => Object.fromEntries(Object.entries(locations).f
  *   guests          { [klucz]: { name, joinedAt } }        goście z /gdzie, osobno od ekipy
  *   guestLocations  { [klucz]: { lat, lng, acc, note, t } }
  *   santa      { people, boxes, drawnAt }                         Mikołajki – szczegóły w Santa.js
+ *   hiddenTabs [nazwa zakładki]                                  ukryte przez admina (Config.TABS)
  *   v          numer wersji, rośnie przy każdej zmianie
  */
 class Trip {
@@ -34,6 +35,7 @@ class Trip {
       plans: {}, locations: {}, expenses: [], aliases: {}, events: [],
       guests: {}, guestLocations: {},
       santa: { people: {}, boxes: {}, drawnAt: null },
+      hiddenTabs: [],
     };
   }
 
@@ -79,7 +81,8 @@ class Trip {
     const now = Date.now();
     return {
       v: d.v,
-      config: { title: this.config.title, days: this.config.schedule.days, cats: this.config.categories },
+      config: { title: this.config.title, days: this.config.schedule.days, cats: this.config.categories, tabs: this.config.tabs },
+      hiddenTabs: d.hiddenTabs,
       people: Object.entries(d.people)
         .map(([key, p]) => ({ key, name: p.name, joinedAt: p.joinedAt }))
         .sort((a, b) => a.joinedAt - b.joinedAt),

@@ -37,7 +37,7 @@ $env:PASSWORD="test"; node server.js   # PowerShell
 ## Ustawienia
 
 - `PASSWORD` – wspólne hasło ekipy; bez niego strona jest otwarta
-- `ADMIN_PASSWORD` – hasło admina („Tryb admina” na dole strony): edycja i usuwanie wszystkich pomysłów i wydatków, zmiana imion, usuwanie osób; puste = wyłączone
+- `ADMIN_PASSWORD` – hasło admina („Tryb admina” na dole strony): edycja i usuwanie wszystkich pomysłów i wydatków, zmiana imion, usuwanie osób, wybór zakładek widocznych dla ekipy (np. po wyjeździe zostają tylko Wydatki, Zdjęcia i Mikołajki); puste = wyłączone
 - `GUEST_PASSWORD` – hasło gości do podstrony `/gdzie` (samo „Gdzie kto jest”); goście to osobna grupa: widzą tylko siebie, w głównej aplikacji i w eksporcie się nie pojawiają; puste = wyłączone
 - `TITLE` – nagłówek strony
 - `DAYS` – dni i pory dnia, np. `Piątek:rano,popołudnie,wieczór;Sobota:rano,popołudnie,wieczór`
@@ -75,6 +75,7 @@ src/
     People.js Ideas.js Board.js Locations.js Expenses.js   logika poszczególnych części
     Guests.js                goście z /gdzie (osobna lista osób)
     Santa.js                 Mikołajki: zapisy, losowanie, szyfrowanie losów
+    Settings.js              ustawienia admina: ukryte zakładki
     Actions.js               akcje API: POST /api/<nazwa> → serwis
   media/
     MediaStore.js            zdjęcia i filmy: wysyłanie kawałkami, CRC i skrót, spis plików

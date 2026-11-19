@@ -35,6 +35,10 @@ const DESCRIBE = {
   santa_remove: e => `usuwa z Mikołajek: ${esc(e.to)}`,
   santa_draw: e => `losuje Mikołajki (${esc(osoby(e.n))})`,
   santa_undraw: () => 'cofa losowanie Mikołajek',
+  tabs: e => [
+    e.hide.length && `ukrywa zakładki: ${e.hide.map(quoted).join(', ')}`,
+    e.show.length && `pokazuje zakładki: ${e.show.map(quoted).join(', ')}`,
+  ].filter(Boolean).join('; '),
   person_rename: e => `zmienia imię ${quoted(e.from)} na ${quoted(e.to)}`,
   person_del: e => `usuwa osobę ${quoted(e.to)}`,
 };
