@@ -61,11 +61,15 @@ class People extends Service {
     if (this.data.expenses.some(x => x.payer === key || x.split.includes(key))) {
       UserError.fail('Ta osoba ma wydatki. Najpierw je usuń albo zmień, potem usuń osobę.');
     }
+    if (this.data.santa.people[key] && this.data.santa.drawnAt) {
+      UserError.fail('Ta osoba bierze udział w Mikołajkach po losowaniu. Najpierw cofnij losowanie.');
+    }
     const name = this.nameOf(key);
     const d = this.data;
     delete d.people[key];
     delete d.plans[key];
     delete d.locations[key];
+    delete d.santa.people[key];
     for (const [id, votes] of Object.entries(d.interest)) {
       delete votes[key];
       if (!Object.keys(votes).length) delete d.interest[id];
@@ -81,6 +85,8 @@ class People extends Service {
     move(d.people);
     move(d.plans);
     move(d.locations);
+    move(d.santa.people);
+    move(d.santa.boxes);
     for (const votes of Object.values(d.interest)) move(votes);
     for (const idea of d.ideas) if (idea.byKey === from) idea.byKey = to;
     for (const x of d.expenses) {

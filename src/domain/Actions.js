@@ -6,6 +6,7 @@ const Ideas = require('./Ideas');
 const Locations = require('./Locations');
 const Expenses = require('./Expenses');
 const Guests = require('./Guests');
+const Santa = require('./Santa');
 
 /**
  * Wszystkie zmiany stanu dostępne przez API: POST /api/<nazwa>.
@@ -20,6 +21,7 @@ class Actions {
     this.ideas = new Ideas(trip, this.board);
     this.locations = new Locations(trip, Trip.LOCATION_TTL);
     this.expenses = new Expenses(trip, this.people);
+    this.santa = new Santa(trip);
 
     /** nazwa akcji → (actor, body, ctx) => void */
     this.handlers = {
@@ -39,6 +41,12 @@ class Actions {
       expense: (me, b) => this.expenses.add(me, b),
       expenseEdit: (me, b, ctx) => this.expenses.edit(me, ctx, b.id, b),
       expenseDelete: (me, b, ctx) => this.expenses.remove(me, ctx, b.id),
+
+      santaJoin: (me, b) => this.santa.join(me, b),
+      santaLeave: (me, b) => this.santa.leave(me, b),
+      santaDraw: (me, b, ctx) => this.santa.draw(me, ctx),
+      santaUndraw: (me, b, ctx) => this.santa.undraw(me, ctx),
+      santaRemove: (me, b, ctx) => this.santa.remove(me, ctx, b.key),
 
       personRename: (me, b, ctx) => this.people.rename(me, ctx, b.key, b.newName),
       personDelete: (me, b, ctx) => this.people.remove(me, ctx, b.key),

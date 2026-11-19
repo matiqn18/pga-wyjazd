@@ -7,6 +7,7 @@ Strona dla ekipy jadącej na PGA. Jedno wspólne hasło, bez kont:
 - **Wspólny plan** – plansza dni × pory dnia, kafelki przeciąga każdy
 - **Mój plan** – co mnie interesuje we wspólnym planie, „Nie mogę”, „Gdzie kto jest” (lokalizacja na 2 h)
 - **Zdjęcia** – każdy wrzuca zdjęcia i filmy z telefonu, potem pobranie wszystkiego (albo jednej osoby) jako ZIP
+- **Mikołajki** – zapisy z telefonem i paczkomatem (wyszukiwarka InPost), losowanie, każdy widzi tylko swój los
 
 Czysty Node, bez zależności i bez kroku budowania.
 
@@ -47,6 +48,12 @@ Jeden plik `/data/pga.json` na wolumenie `pga-data` (lokalnie `data/pga.json`, p
 Przy starcie serwer robi kopię do `data/backup/` (5 ostatnich).
 Pobranie: link na dole strony albo `/api/export` (po zalogowaniu).
 
+Mikołajki: dane do paczek są w `pga.json` (bez nich w eksporcie JSON), ale par „kto kogo” nie ma nigdzie.
+Przy zapisie przeglądarka tworzy klucz (ECDH P-256) i zostawia go u siebie; serwer losuje jeden cykl i dane wylosowanej osoby
+szyfruje kluczem publicznym losującego. Otworzyć los można tylko kluczem z przeglądarki albo z linku zapasowego,
+więc wyniku nie zobaczy ani admin, ani ktoś z dostępem do pliku. Zgubiony klucz = cofnij losowanie, usuń osobę, zapis od nowa, losuj jeszcze raz.
+Losuje admin (bez `ADMIN_PASSWORD` każdy). Działa tylko przez HTTPS (albo na localhost).
+
 Zdjęcia i filmy: pliki w `data/media/`, spis w `data/media.json`. Nie trafiają do eksportu JSON ani do `backup/`.
 Wysyłanie idzie kawałkami po 8 MB (działa też za Cloudflare, przerwane połączenie wznawia się samo), duplikaty są pomijane.
 ZIP składa się w locie, bez kompresji i bez zapisu na dysk; powyżej 4 GB jako ZIP64. Serwer odmawia przyjęcia pliku, gdy na dysku zostałoby mniej niż 1 GB.
@@ -67,6 +74,7 @@ src/
     Service.js               baza serwisów: dane, historia, uprawnienia (autor / admin)
     People.js Ideas.js Board.js Locations.js Expenses.js   logika poszczególnych części
     Guests.js                goście z /gdzie (osobna lista osób)
+    Santa.js                 Mikołajki: zapisy, losowanie, szyfrowanie losów
     Actions.js               akcje API: POST /api/<nazwa> → serwis
   media/
     MediaStore.js            zdjęcia i filmy: wysyłanie kawałkami, CRC i skrót, spis plików
@@ -76,12 +84,13 @@ src/
     Auth.js TokenSigner.js RateLimiter.js   hasło ekipy, tryb admina, limit prób
     StaticFiles.js           pliki z public/ z wersjami w adresach (?v=…)
     MediaRoutes.js           trasy /api/media…: spis, wysyłanie, usuwanie, ZIP
+    LockerSearch.js          wyszukiwanie paczkomatów (publiczne API InPost)
 public/
   app.js                     punkt wejścia strony
   gdzie.html, gdzie.js       podstrona gości /gdzie
   js/App.js                  stan, odpytywanie serwera, zakładki, okna
   js/GuestApp.js             podstrona gości: WherePanel + logowanie i wybór imienia
-  js/core/                   Api, Identity, Prefs, Toast, format, dom, Uploader (wysyłanie plików)
+  js/core/                   Api, Identity, Prefs, Toast, format, dom, Uploader (wysyłanie plików), SantaKey (klucz Mikołajek)
   js/model/TripModel.js      pytania o stan: oceny, plan, bilans, przelewy
   js/ui/                     wspólne kawałki HTML, opisy historii
   js/views/                  zakładki (klasa View) + DragController, WherePanel

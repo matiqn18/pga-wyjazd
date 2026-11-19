@@ -16,6 +16,7 @@ import { MediaView } from './views/MediaView.js';
 import { MyPlanView } from './views/MyPlanView.js';
 import { PeopleView } from './views/PeopleView.js';
 import { PlanView } from './views/PlanView.js';
+import { SantaView } from './views/SantaView.js';
 
 const POLL_MS = 2500;
 
@@ -39,6 +40,7 @@ export class App {
       moj: new MyPlanView(this),
       wydatki: new ExpensesView(this),
       zdjecia: new MediaView(this),
+      mikolaj: new SantaView(this),
     };
     this.dialogs = {
       login: new LoginDialog(this),

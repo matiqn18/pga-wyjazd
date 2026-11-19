@@ -22,6 +22,7 @@
     <button type="button" data-view="moj" aria-pressed="false">Mój plan</button>
     <button type="button" data-view="wydatki" aria-pressed="false">Wydatki</button>
     <button type="button" data-view="zdjecia" aria-pressed="false">Zdjęcia</button>
+    <button type="button" data-view="mikolaj" aria-pressed="false">Mikołajki</button>
   </nav>
   <button type="button" id="me-chip" class="me" title="Zmień osobę"></button>
 </header>
@@ -149,6 +150,48 @@
       <summary>Lista plików <small id="media-count"></small></summary>
       <div id="media-list" class="media-list"></div>
     </details>
+  </section>
+
+  <section id="view-mikolaj" class="santa-view" hidden>
+    <h2>Mikołajki</h2>
+    <p id="santa-summary" class="hint"></p>
+    <div id="santa-status"></div>
+
+    <form id="santa-restore" class="add santa-form" autocomplete="off" hidden>
+      <h3>Klucz z innego urządzenia</h3>
+      <p class="where-hint">Zapisano cię na innym urządzeniu. Otwórz tutaj link z kluczem albo wklej go poniżej.</p>
+      <label for="santa-code">Link albo kod klucza</label>
+      <input id="santa-code" required>
+      <button type="submit" class="btn">Użyj klucza</button>
+    </form>
+
+    <form id="santa-form" class="add santa-form" hidden>
+      <h3 id="santa-form-title">Zapisz się</h3>
+      <label for="santa-phone">Telefon</label>
+      <input id="santa-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="16" placeholder="np. 600 123 456" required>
+      <label for="santa-fullname">Imię i nazwisko na paczkę</label>
+      <input id="santa-fullname" name="fullName" autocomplete="name" maxlength="60">
+      <label for="santa-email">E-mail, jeśli chcesz (InPost czasem o niego prosi)</label>
+      <input id="santa-email" name="email" type="email" autocomplete="email" maxlength="80">
+      <fieldset>
+        <legend>Paczkomat</legend>
+        <input type="hidden" name="locker">
+        <input type="hidden" name="lockerAddress">
+        <div id="santa-locker-chosen" class="santa-chosen"></div>
+        <div class="where-row">
+          <input id="santa-locker-q" maxlength="40" placeholder="kod paczkomatu, kod pocztowy albo miasto" aria-label="Szukaj paczkomatu">
+          <button type="button" id="santa-locker-search" class="btn-line">Szukaj</button>
+        </div>
+        <button type="button" id="santa-locker-near" class="linklike">Pokaż paczkomaty w pobliżu</button>
+        <div id="santa-locker-results" class="santa-lockers"></div>
+      </fieldset>
+      <label for="santa-wish">Wskazówka dla Mikołaja, jeśli chcesz</label>
+      <textarea id="santa-wish" name="wish" maxlength="300" rows="3" placeholder="np. lubię herbatę, nie piję kawy"></textarea>
+      <button type="submit" id="santa-submit" class="btn">Zapisz się</button>
+    </form>
+
+    <h2>Na liście <small id="santa-count" class="muted"></small></h2>
+    <div id="santa-people" class="santa-people"></div>
   </section>
 </main>
 

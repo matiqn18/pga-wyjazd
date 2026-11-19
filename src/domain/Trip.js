@@ -22,6 +22,7 @@ const fresh = (locations, now) => Object.fromEntries(Object.entries(locations).f
  *   events     [ { t, who, type, … } ]
  *   guests          { [klucz]: { name, joinedAt } }        goście z /gdzie, osobno od ekipy
  *   guestLocations  { [klucz]: { lat, lng, acc, note, t } }
+ *   santa      { people, boxes, drawnAt }                         Mikołajki – szczegóły w Santa.js
  *   v          numer wersji, rośnie przy każdej zmianie
  */
 class Trip {
@@ -32,6 +33,7 @@ class Trip {
       schema: SCHEMA, v: 1, people: {}, ideas: [], interest: {}, board: { slots: {} },
       plans: {}, locations: {}, expenses: [], aliases: {}, events: [],
       guests: {}, guestLocations: {},
+      santa: { people: {}, boxes: {}, drawnAt: null },
     };
   }
 
@@ -89,6 +91,11 @@ class Trip {
       expenses: d.expenses,
       aliases: d.aliases,
       events: d.events,
+      // Mikołajki: tylko kto jest na liście; dane do paczki i losy są poza widokiem publicznym.
+      santa: {
+        drawnAt: d.santa.drawnAt,
+        people: Object.entries(d.santa.people).map(([key, p]) => ({ key, at: p.at })).sort((a, b) => a.at - b.at),
+      },
     };
   }
 

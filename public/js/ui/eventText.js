@@ -30,6 +30,11 @@ const DESCRIBE = {
   expense_edit: e => `zmienia wydatek ${quoted(e.idea)} (teraz ${esc(zl(e.amount))})`,
   expense_del: e => `usuwa wydatek ${quoted(e.idea)} (${esc(zl(e.amount))})`,
   settle: e => `zapisuje zwrot: ${esc(e.payer)} oddaje ${esc(e.to)} ${esc(zl(e.amount))}`,
+  santa_join: () => 'zapisuje się na Mikołajki',
+  santa_leave: () => 'wypisuje się z Mikołajek',
+  santa_remove: e => `usuwa z Mikołajek: ${esc(e.to)}`,
+  santa_draw: e => `losuje Mikołajki (${esc(osoby(e.n))})`,
+  santa_undraw: () => 'cofa losowanie Mikołajek',
   person_rename: e => `zmienia imię ${quoted(e.from)} na ${quoted(e.to)}`,
   person_del: e => `usuwa osobę ${quoted(e.to)}`,
 };

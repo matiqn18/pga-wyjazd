@@ -46,6 +46,11 @@ export class Api {
   mediaStart(body) { return this.request('POST', 'media/start', body); }
   mediaDelete(body) { return this.request('POST', 'media/delete', body); }
 
+  /** Mikołajki: własne dane i zaszyfrowany los (wymaga tokenu z klucza). */
+  santaMine(name, token) { return this.request('POST', 'santa/mine', { name, token }); }
+  /** Paczkomaty: `{ q }` albo `{ lat, lng }`. */
+  lockers(params) { return this.request('GET', 'paczkomaty?' + new URLSearchParams(params)); }
+
   login(password) { return this.request('POST', 'login', { password }); }
   logout() { return this.request('POST', 'logout', {}); }
   adminLogin(password) { return this.request('POST', 'adminLogin', { password }); }

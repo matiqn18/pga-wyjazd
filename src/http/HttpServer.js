@@ -3,7 +3,9 @@ const http = require('http');
 const Auth = require('./Auth');
 const StaticFiles = require('./StaticFiles');
 const MediaRoutes = require('./MediaRoutes');
+const LockerSearch = require('./LockerSearch');
 const UserError = require('../util/UserError');
+const { keyOf } = require('../util/text');
 
 const MAX_BODY = 16 * 1024;
 
@@ -54,6 +56,8 @@ function readJson(req) {
  *   GET  /api/state?v=N           – stan (albo {unchanged}), GET /api/export – cały plik danych
  *   POST /api/<akcja>             – zmiany przez Actions
  *   /api/media…                   – zdjęcia i filmy (MediaRoutes)
+ *   POST /api/santa/mine          – Mikołajki: własne dane i zaszyfrowany los (z tokenem)
+ *   GET  /api/paczkomaty?q=…      – wyszukiwanie paczkomatów InPost
  *   /api/guest/…                  – podstrona /gdzie (hasło gości): login, logout, state, locate, locateClear
  */
 class HttpServer {
@@ -64,6 +68,7 @@ class HttpServer {
     this.actions = actions;
     this.auth = new Auth(config);
     this.files = new StaticFiles(config.publicDir);
+    this.lockers = new LockerSearch();
     this.media = new MediaRoutes({ media, trip, store, actions, auth: this.auth, send, readJson });
 
     this.publicRoutes = {
@@ -75,6 +80,8 @@ class HttpServer {
       'POST /api/adminLogout': (req, res) => this.adminLogout(req, res),
       'GET /api/state': (req, res, url) => this.state(req, res, url),
       'GET /api/export': (req, res) => this.export(req, res),
+      'POST /api/santa/mine': (req, res) => this.santaMine(req, res),
+      'GET /api/paczkomaty': (req, res, url) => this.findLockers(res, url),
     };
     this.guestPublicRoutes = {
       'POST /api/guest/login': (req, res) => this.guestLogin(req, res),
@@ -189,9 +196,25 @@ class HttpServer {
 
   export(req, res) {
     const day = new Date().toISOString().slice(0, 10);
-    // Goście to osobna grupa: ich dane zostają tylko w pliku na serwerze.
-    const { guests, guestLocations, ...teamData } = this.trip.data;
+    // Goście to osobna grupa, a dane do paczek z Mikołajek są prywatne: zostają tylko w pliku na serwerze.
+    const { guests, guestLocations, santa, ...teamData } = this.trip.data;
     return send(res, 200, teamData, { 'Content-Disposition': `attachment; filename="pga-${day}.json"` });
+  }
+
+  /** Bez zakładania osoby: pyta tylko o to, co już jest. */
+  async santaMine(req, res) {
+    const { name, token } = await readJson(req);
+    const key = this.actions.people.canonicalKey(keyOf(name));
+    return send(res, 200, this.actions.santa.mine(key, token));
+  }
+
+  async findLockers(res, url) {
+    try {
+      return send(res, 200, { items: await this.lockers.find(url.searchParams) });
+    } catch (e) {
+      console.error('Paczkomaty:', e.message);
+      return send(res, 502, { error: 'Wyszukiwarka paczkomatów InPost nie odpowiada. Jeśli znasz kod paczkomatu, wpisz go i użyj bez sprawdzania.' });
+    }
   }
 
   async runAction(req, res, action) {
