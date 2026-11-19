@@ -6,6 +6,7 @@ import { View } from './View.js';
 
 const LINK = /#?mikolaj=(.+)\.([A-Za-z0-9_-]{128})$/;
 const CONTACT_FIELDS = ['phone', 'fullName', 'email', 'locker', 'lockerAddress', 'wish'];
+const BUDGET = 'Limit na prezent: 15 zł (bez kosztów wysyłki i bez dodatków zrobionych ręcznie).';
 
 /**
  * Zakładka „Mikołajki”: zapis z danymi do paczki (telefon, paczkomat), losowanie
@@ -120,9 +121,10 @@ export class SantaView extends View {
     const keyWrong = this.mine?.joined && this.mine.keyOk === false;
     const hasKey = Boolean(code) && !keyWrong;
 
-    this.summary.textContent = drawn
+    this.summary.textContent = (drawn
       ? `Losowanie: ${shortTime(s.drawnAt)}, ${osoby(s.people.length)}. Każda osoba widzi tylko swój los.`
-      : 'Zapisz się z danymi do paczki. Po losowaniu każda osoba zobaczy, komu robi prezent i gdzie go wysłać. Wynik jest zaszyfrowany kluczem z twojej przeglądarki: nie widzi go nikt inny, także admin.';
+      : 'Zapisz się z danymi do paczki. Po losowaniu każda osoba zobaczy, komu robi prezent i gdzie go wysłać. Wynik jest zaszyfrowany kluczem z twojej przeglądarki: nie widzi go nikt inny, także admin.')
+      + ` ${BUDGET}`;
 
     this.form.hidden = drawn || (joined && !hasKey);
     this.restore.hidden = !joined || hasKey;
